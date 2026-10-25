@@ -1,0 +1,6 @@
+{
+  "name": "AdvokaID — Konsultasi Hukum & Tinjauan Kontrak Real-Time",
+  "description": "Platform konsultasi hukum digital yang menghubungkan masyarakat dan pelaku usaha langsung dengan advokat profesional PERADI melalui chat real-time dan peninjauan pasal kontrak kolaboratif.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
