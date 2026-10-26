@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { AuthSession, ClientAccount, Lawyer } from '../types/legal';
 import { LawyerAvatar } from './LawyerAvatar';
-import { PWAInstallButton } from './PWAInstallButton';
+import { AdvokaIdLogo } from './AdvokaIdLogo';
 
 interface LoginPageProps {
   clients: ClientAccount[];
@@ -193,17 +193,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col justify-between">
-      <header className="flex items-center justify-between gap-8 px-4 sm:px-6 py-4 bg-white border-b border-slate-200">
-        <div className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 font-display whitespace-nowrap shrink-0">
-          AdvokaID
-        </div>
+      <header className="flex items-center justify-between gap-8 px-4 sm:px-6 py-3.5 bg-white border-b border-slate-200">
+        <AdvokaIdLogo size="md" showTagline />
         <div className="hidden md:flex items-center gap-6 text-xs text-slate-600">
-          <span>Konsultasi Hukum & Kontrak</span>
+          <span>Konsultasi Hukum &amp; Kontrak</span>
           <span aria-hidden="true">·</span>
           <span>UU Advokat No. 18/2003</span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <PWAInstallButton />
+        <div className="text-xs font-mono text-slate-500 tabular-nums whitespace-nowrap shrink-0">
+          PERADI
         </div>
       </header>
 
@@ -211,11 +209,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-stretch">
           <section className="lg:col-span-5 bg-slate-900 text-white rounded-2xl p-6 sm:p-8 flex flex-col justify-between border border-slate-800">
             <div className="space-y-4">
+              <div className="pb-3 border-b border-slate-800/80 flex items-center justify-between">
+                <AdvokaIdLogo size="sm" theme="dark" />
+                <span className="text-[11px] font-mono text-amber-400/90 uppercase tracking-wider">
+                  Verified Chambers
+                </span>
+              </div>
               <div className="text-xs font-semibold text-amber-400">
                 Layanan Bantuan Hukum Digital
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold font-display leading-tight">
-                Konsultasi Hukum & Tinjauan Kontrak Real-Time.
+                Konsultasi Hukum &amp; Tinjauan Kontrak Real-Time.
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                 Hubungi advokat berlisensi untuk pendampingan perkara Perdata, Pidana, Bisnis, Keluarga, dan Ketenagakerjaan.
@@ -510,8 +514,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         </div>
       </main>
 
-      <footer className="border-t border-slate-200 bg-white px-4 sm:px-6 py-4 text-xs text-slate-500 text-center">
-        <strong>AdvokaID</strong> — Platform Konsultasi Hukum & Kontrak Indonesia.
+      <footer className="border-t border-slate-200 bg-white px-4 sm:px-6 py-4 text-xs text-slate-500 flex items-center justify-center gap-2">
+        <AdvokaIdLogo size="sm" />
+        <span>— Platform Konsultasi Hukum &amp; Kontrak Indonesia.</span>
       </footer>
     </div>
   );

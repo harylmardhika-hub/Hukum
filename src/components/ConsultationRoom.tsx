@@ -8,9 +8,8 @@ import {
   ArrowUpRight,
   Edit3,
   Check,
-  UserCheck,
   MessageSquare,
-  FolderKanban,
+  ChevronDown,
 } from 'lucide-react';
 import {
   ConsultationSession,
@@ -80,7 +79,6 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
   messages,
   documents,
   activeRole,
-  authenticatedUserName,
   typingInfo,
   onSelectSession,
   onSendMessage,
@@ -89,7 +87,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
   onUploadDocument,
   onUpdateOpinion,
 }) => {
-  const [mobilePanel, setMobilePanel] = useState<'chat' | 'contract' | 'sessions'>('chat');
+  const [mobilePanel, setMobilePanel] = useState<'chat' | 'contract'>('chat');
 
   const [inputContent, setInputContent] = useState<string>('');
   const [quotedClause, setQuotedClause] = useState<ContractClause | null>(null);
@@ -174,179 +172,145 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
   const quickPrompts =
     activeRole === 'client'
       ? [
-          'Apakah klausul denda di kontrak ini dapat dibatalkan?',
-          'Mohon buatkan rumusan counter-draft yang lebih melindungi kami.',
-          'Apa langkah hukum jika pihak lawan wanprestasi?',
+          'Apakah klausul denda ini dapat dibatalkan?',
+          'Mohon buatkan rumusan counter-draft.',
+          'Apa langkah jika pihak lawan wanprestasi?',
         ]
       : [
-          'Saya telah memperbarui catatan redlining pada pasal berisiko tinggi di panel kanan.',
-          'Secara hukum keperdataan (Pasal 1320 & 1338 KUHPerdata), klausul ini perlu diseimbangkan.',
-          'Silakan gunakan draf revisi yang telah saya susun untuk negosiasi dengan pihak lawan.',
+          'Catatan revisi pasal sudah saya perbarui di panel kanan.',
+          'Klausul ini perlu diseimbangkan sesuai Pasal 1338 KUHPerdata.',
+          'Silakan gunakan draf revisi di kanan untuk negosiasi.',
         ];
 
   return (
     <div className="space-y-3">
-      {/* Mobile & Tablet Ergonomic Sub-View Switcher */}
-      <div className="lg:hidden bg-white border border-slate-200 rounded-xl p-1.5 grid grid-cols-3 gap-1 shadow-xs">
+      {/* Unified Top Case Header Bar */}
+      <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <LawyerAvatar lawyer={lawyer} size="md" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                {session.caseNumber}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>Klien: {session.clientName}</span>
+              <span aria-hidden="true">·</span>
+              <span className="font-semibold text-amber-800">{session.status}</span>
+            </div>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 truncate mt-0.5">
+              {session.title}
+            </h2>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {allSessions.length > 1 && (
+            <div className="relative flex-1 sm:flex-initial">
+              <select
+                value={session.id}
+                onChange={(e) => onSelectSession(e.target.value)}
+                aria-label="Pilih Perkara"
+                className="w-full min-h-[38px] appearance-none pl-3 pr-8 py-1.5 text-xs font-medium text-slate-800 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600"
+              >
+                {allSessions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.caseNumber} — {item.title.slice(0, 38)}...
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowOpinionModal(true)}
+            className="min-h-[38px] inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors whitespace-nowrap shrink-0"
+          >
+            <Scale className="w-3.5 h-3.5 text-amber-700" />
+            <span>Opini Hukum</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile 2-Tab Switcher (Hidden on lg+ desktop where both panels sit 50/50 side-by-side) */}
+      <div className="lg:hidden bg-white border border-slate-200 rounded-xl p-1 grid grid-cols-2 gap-1">
         <button
           type="button"
           onClick={() => setMobilePanel('chat')}
-          className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
+          className={`min-h-[42px] px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 ${
             mobilePanel === 'chat'
               ? 'bg-slate-900 text-white'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-          <span>Chat ({messages.length})</span>
+          <span>Ruang Chat ({messages.length})</span>
         </button>
 
         <button
           type="button"
           onClick={() => setMobilePanel('contract')}
-          className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
+          className={`min-h-[42px] px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 ${
             mobilePanel === 'contract'
               ? 'bg-slate-900 text-white'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <FileText className="w-3.5 h-3.5 shrink-0" />
-          <span>Kontrak ({totalClausesCount} Pasal)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMobilePanel('sessions')}
-          className={`min-h-[44px] px-2 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
-            mobilePanel === 'sessions'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <FolderKanban className="w-3.5 h-3.5 shrink-0" />
-          <span>Perkara ({allSessions.length})</span>
+          <span>Tinjauan Kontrak ({totalClausesCount} Pasal)</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-11rem)] bg-white border border-slate-200 rounded-xl overflow-hidden">
-        {/* Left Sidebar: Isolated Active Sessions List */}
-        <aside
-          className={`${
-            mobilePanel === 'sessions' ? 'flex' : 'hidden lg:flex'
-          } lg:col-span-3 border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50/70 flex-col max-h-[75vh] lg:max-h-[calc(100vh-8.5rem)]`}
-        >
-          <div className="p-4 border-b border-slate-200">
-            <h2 className="text-xs font-semibold text-slate-900">
-              {activeRole === 'client'
-                ? `Perkara Milik ${authenticatedUserName} (${allSessions.length})`
-                : `Perkara Ditugaskan pada Anda (${allSessions.length})`}
-            </h2>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Sesi terisolasi sesuai akun yang sedang login
-            </p>
-          </div>
-
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-200/80">
-            {allSessions.map((item) => {
-              const isSelected = item.id === session.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    onSelectSession(item.id);
-                    setMobilePanel('chat');
-                  }}
-                  className={`w-full text-left p-4 min-h-[64px] transition-colors ${
-                    isSelected
-                      ? 'bg-amber-50/70 font-medium'
-                      : 'hover:bg-slate-100/80'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 font-mono tabular-nums">
-                    <span className={isSelected ? 'text-amber-900 font-semibold' : ''}>
-                      {item.caseNumber}
-                    </span>
-                    <span>{item.startedAt}</span>
-                  </div>
-                  <div className="text-xs font-semibold text-slate-900 mt-1 line-clamp-2">
-                    {item.title}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-600 mt-1.5">
-                    <span className="truncate">{item.clientName}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="text-amber-800 font-medium truncate">
-                      {item.status}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </aside>
-
-        {/* Center Panel: Real-Time Legal Chat Stream */}
+      {/* Balanced 50/50 Split Workspace on Desktop (lg:grid-cols-12 -> 6 cols Chat + 6 cols Contract Reviewer) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        {/* Left Panel (6 Cols / 50% Width): Real-Time Legal Chat */}
         <section
           className={`${
             mobilePanel === 'chat' ? 'flex' : 'hidden lg:flex'
-          } lg:col-span-5 flex-col h-[calc(100vh-14.5rem)] min-h-[520px] lg:h-[calc(100vh-8.5rem)] bg-white`}
+          } lg:col-span-6 flex-col h-[640px] lg:h-[calc(100vh-13.5rem)] min-h-[540px] bg-white border border-slate-200 rounded-xl overflow-hidden`}
         >
-          {/* Session Context Header */}
-          <div className="px-4 sm:px-5 py-3 border-b border-slate-200 flex items-center justify-between gap-3 bg-white">
-            <div className="flex items-center gap-3 min-w-0">
-              <LawyerAvatar lawyer={lawyer} size="md" />
-              <div className="min-w-0">
-                <h2 className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
-                  {lawyer.name}
-                </h2>
-                <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 truncate">
-                  <span className="truncate">{lawyer.specialty}</span>
-                  <span aria-hidden="true">·</span>
-                  <span className="font-mono tabular-nums shrink-0">
-                    {lawyer.niaPeradi}
-                  </span>
-                </div>
+          {/* Chat Panel Subheader */}
+          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-slate-900 truncate">
+                Diskusi Hukum · {lawyer.name}
+              </div>
+              <div className="text-[11px] text-slate-500 truncate">
+                {lawyer.specialty} · <span className="font-mono">{lawyer.niaPeradi}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowOpinionModal(true)}
-                className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-800 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors whitespace-nowrap shrink-0"
-              >
-                <Scale className="w-3.5 h-3.5 text-amber-700" />
-                <span>Opini Hukum</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Legal Opinion Summary Collapsible Strip */}
-          <div className="px-4 sm:px-5 py-2.5 bg-amber-50/60 border-b border-amber-200/80 flex items-start justify-between gap-3">
-            <div className="text-xs text-slate-800 leading-relaxed min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-amber-900 mb-0.5">
-                <span className="font-mono tabular-nums">{session.caseNumber}</span>
-                <span aria-hidden="true">·</span>
-                <span>{session.status}</span>
-              </div>
-              <p className="line-clamp-2 text-[11px] sm:text-xs">
-                {session.legalOpinionSummary}
-              </p>
-            </div>
             {activeRole === 'lawyer' && (
               <button
                 type="button"
                 onClick={() => setShowOpinionModal(true)}
-                className="min-h-[36px] inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:underline whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:underline whitespace-nowrap shrink-0"
               >
                 <Edit3 className="w-3 h-3" />
-                <span>Edit</span>
+                <span>Edit Opini</span>
               </button>
             )}
           </div>
 
-          {/* Real-Time Chat Messages Stream */}
-          <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-4 bg-slate-50/40">
+          {/* Compact Legal Opinion Banner */}
+          <div className="px-4 py-2.5 bg-amber-50/50 border-b border-amber-200/70 flex items-start justify-between gap-3">
+            <p className="text-xs text-slate-700 leading-relaxed line-clamp-2">
+              <strong className="text-amber-950">Ringkasan Opini:</strong>{' '}
+              {session.legalOpinionSummary}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowOpinionModal(true)}
+              className="text-[11px] font-semibold text-amber-800 hover:underline whitespace-nowrap shrink-0 mt-0.5"
+            >
+              Detail
+            </button>
+          </div>
+
+          {/* Messages Stream */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/30">
             {messages.map((msg) => {
               const isOwnRole = msg.senderRole === activeRole;
               const isLawyerMsg = msg.senderRole === 'lawyer';
@@ -356,7 +320,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                   key={msg.id}
                   className={`flex flex-col ${isOwnRole ? 'items-end' : 'items-start'}`}
                 >
-                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 mb-1 px-1">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mb-1 px-1">
                     <span className="font-semibold text-slate-700">
                       {msg.senderName}
                     </span>
@@ -367,7 +331,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                   </div>
 
                   <div
-                    className={`max-w-[92%] sm:max-w-[86%] rounded-2xl px-3.5 sm:px-4 py-3 text-xs leading-relaxed border ${
+                    className={`max-w-[88%] rounded-2xl px-4 py-3 text-xs leading-relaxed border ${
                       isOwnRole
                         ? 'bg-slate-900 text-white border-slate-900'
                         : isLawyerMsg
@@ -379,14 +343,14 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                       <button
                         type="button"
                         onClick={() => handleJumpToClause(msg.referencedClauseId!)}
-                        className={`mb-2 w-full min-h-[40px] text-left px-3 py-2 rounded-lg flex items-center justify-between gap-2 text-[11px] font-medium transition-colors ${
+                        className={`mb-2 w-full text-left px-3 py-1.5 rounded-lg flex items-center justify-between gap-2 text-[11px] font-medium transition-colors ${
                           isOwnRole
                             ? 'bg-slate-800 text-amber-300 hover:bg-slate-700'
                             : 'bg-white text-amber-900 border border-amber-300 hover:bg-amber-100/60'
                         }`}
                       >
                         <span className="truncate">
-                          Lihat Klausul: {msg.referencedClauseLabel}
+                          Rujukan: {msg.referencedClauseLabel}
                         </span>
                         <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
                       </button>
@@ -396,7 +360,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                       <button
                         type="button"
                         onClick={() => setMobilePanel('contract')}
-                        className={`mb-2 w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2 text-[11px] font-mono ${
+                        className={`mb-2 w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 text-[11px] font-mono ${
                           isOwnRole
                             ? 'bg-slate-800 text-slate-200'
                             : 'bg-slate-100 text-slate-800 border border-slate-200'
@@ -418,45 +382,30 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
               typingInfo.isTyping &&
               typingInfo.senderRole !== activeRole && (
                 <div className="text-xs text-slate-500 italic px-2">
-                  {typingInfo.senderName} sedang menyusun tanggapan hukum...
+                  {typingInfo.senderName} sedang mengetik...
                 </div>
               )}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Authenticated Session Indicator & Quick Prompts */}
-          <div className="px-3.5 sm:px-4 pt-2.5 pb-1 bg-white border-t border-slate-200">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 min-w-0">
-                <UserCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span className="truncate">
-                  Sesi Login Aktif:{' '}
-                  <strong className="text-slate-900">
-                    {authenticatedUserName} (
-                    {activeRole === 'client' ? 'Klien' : 'Advokat Pendamping'})
-                  </strong>
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-scrollbar">
-              {quickPrompts.map((prompt, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setInputContent(prompt)}
-                  className="min-h-[34px] px-2.5 py-1 text-[11px] text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md whitespace-nowrap shrink-0 transition-colors"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+          {/* Quick Prompts Bar */}
+          <div className="px-3.5 py-2 bg-white border-t border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {quickPrompts.map((prompt, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setInputContent(prompt)}
+                className="px-2.5 py-1 text-[11px] text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md whitespace-nowrap shrink-0 transition-colors"
+              >
+                {prompt}
+              </button>
+            ))}
           </div>
 
           {/* Quoted Clause Banner */}
           {quotedClause && (
-            <div className="mx-3.5 sm:mx-4 mt-1 px-3 py-2 bg-amber-50 border border-amber-300 rounded-lg flex items-center justify-between gap-2">
+            <div className="mx-3.5 mb-1 px-3 py-1.5 bg-amber-50 border border-amber-300 rounded-lg flex items-center justify-between gap-2">
               <div className="text-xs text-amber-950 truncate">
                 <span className="font-semibold">
                   Mengutip {quotedClause.clauseNumber}:
@@ -466,17 +415,17 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
               <button
                 type="button"
                 onClick={() => setQuotedClause(null)}
-                className="text-amber-800 hover:text-amber-950 p-1"
+                className="text-amber-800 hover:text-amber-950 p-0.5"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
-          {/* Chat Input Composer */}
+          {/* Chat Composer */}
           <form
             onSubmit={handleSubmitChat}
-            className="p-3 sm:p-4 bg-white flex items-center gap-2"
+            className="p-3 bg-white border-t border-slate-100 flex items-center gap-2"
           >
             <input
               type="text"
@@ -490,11 +439,11 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                   ? 'Tulis pertanyaan hukum atau tanggapan...'
                   : 'Tulis advis hukum untuk Klien...'
               }
-              className="flex-1 min-h-[44px] text-xs sm:text-sm text-slate-900 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:outline-none focus:bg-white focus:ring-2 focus:ring-amber-600"
+              className="flex-1 min-h-[42px] text-xs text-slate-900 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 focus:outline-none focus:bg-white focus:ring-2 focus:ring-amber-600"
             />
             <button
               type="submit"
-              className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 active:scale-[0.98] transition-all whitespace-nowrap shrink-0"
+              className="min-h-[42px] inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Kirim</span>
@@ -502,11 +451,11 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
           </form>
         </section>
 
-        {/* Right Panel: Interactive Contract Reviewer */}
+        {/* Right Panel (6 Cols / 50% Width): Interactive Contract Reviewer */}
         <section
           className={`${
-            mobilePanel === 'contract' ? 'block' : 'hidden lg:block'
-          } lg:col-span-4 h-[calc(100vh-14.5rem)] min-h-[520px] lg:h-[calc(100vh-8.5rem)]`}
+            mobilePanel === 'contract' ? 'flex' : 'hidden lg:flex'
+          } lg:col-span-6 flex-col h-[640px] lg:h-[calc(100vh-13.5rem)] min-h-[540px] bg-white border border-slate-200 rounded-xl overflow-hidden`}
         >
           <ContractReviewerPanel
             sessionId={session.id}
@@ -521,7 +470,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
         </section>
       </div>
 
-      {/* Legal Opinion Summary & Recommendations Modal */}
+      {/* Legal Opinion Modal */}
       {showOpinionModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/50 p-0 sm:p-4">
           <div className="bg-white border border-slate-200 rounded-t-3xl sm:rounded-xl max-w-xl w-full p-5 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -532,13 +481,13 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                   {session.caseNumber} · {session.category}
                 </div>
                 <h3 className="text-base font-semibold text-slate-900 mt-0.5">
-                  Ringkasan Opini Hukum & Langkah Rekomendasi
+                  Ringkasan Opini Hukum & Rekomendasi
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowOpinionModal(false)}
-                className="min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-400 hover:text-slate-700 rounded-lg"
+                className="min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-slate-700 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -548,7 +497,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
               <form onSubmit={handleSaveOpinion} className="mt-4 space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-800 mb-1">
-                    Status Perkara / Konsultasi
+                    Status Perkara
                   </label>
                   <select
                     value={opinionStatus}
@@ -557,7 +506,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                         e.target.value as ConsultationSession['status']
                       )
                     }
-                    className="w-full min-h-[44px] text-xs border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-600"
+                    className="w-full min-h-[42px] text-xs border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-600"
                   >
                     <option value="Aktif">Aktif</option>
                     <option value="Menunggu Tinjauan Kontrak">
@@ -569,7 +518,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-800 mb-1">
-                    Kesimpulan Analisis Hukum (Legal Opinion Summary)
+                    Kesimpulan Analisis Hukum (Legal Opinion)
                   </label>
                   <textarea
                     rows={4}
@@ -582,7 +531,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-800 mb-1">
-                    Rekomendasi Tindakan Hukum (Satu poin per baris)
+                    Rekomendasi Tindakan Hukum (Satu per baris)
                   </label>
                   <textarea
                     rows={4}
@@ -597,16 +546,16 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowOpinionModal(false)}
-                    className="min-h-[44px] px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+                    className="min-h-[42px] px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
                   >
                     Tutup
                   </button>
                   <button
                     type="submit"
-                    className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-amber-700 rounded-lg hover:bg-amber-800"
+                    className="min-h-[42px] inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-amber-700 rounded-lg hover:bg-amber-800"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Terbitkan Opini Hukum</span>
+                    <span>Simpan Opini Hukum</span>
                   </button>
                 </div>
               </form>
@@ -614,7 +563,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
               <div className="mt-4 space-y-4">
                 <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
                   <div className="text-xs font-semibold text-slate-900 mb-1">
-                    Pendapat Hukum Advokat ({lawyer.name}):
+                    Pendapat Hukum ({lawyer.name}):
                   </div>
                   <p className="text-xs text-slate-700 leading-relaxed">
                     {session.legalOpinionSummary}
@@ -623,7 +572,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
 
                 <div>
                   <div className="text-xs font-semibold text-slate-900 mb-2">
-                    Langkah Tindak Lanjut yang Direkomendasikan:
+                    Langkah Tindak Lanjut:
                   </div>
                   <ul className="space-y-2">
                     {session.recommendedNextSteps.map((step, idx) => (
@@ -642,9 +591,9 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowOpinionModal(false)}
-                    className="min-h-[44px] px-5 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800"
+                    className="min-h-[42px] px-5 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800"
                   >
-                    Mengerti
+                    Tutup
                   </button>
                 </div>
               </div>

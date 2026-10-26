@@ -38,7 +38,7 @@ import { LawyerAvatar } from './components/LawyerAvatar';
 import { ConsultationRoom } from './components/ConsultationRoom';
 import { LawyerDashboard } from './components/LawyerDashboard';
 import { LoginPage } from './components/LoginPage';
-import { PWAInstallButton } from './components/PWAInstallButton';
+import { AdvokaIdLogo } from './components/AdvokaIdLogo';
 
 type ActiveSection = 'directory' | 'consultation' | 'contracts' | 'guide';
 
@@ -443,16 +443,16 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] pb-20 md:pb-0">
       {/* TOP BAR CONTRACT: Strictly 1 row, 3 zones separated by gap-8 */}
       <header className="md:sticky md:top-0 z-30 flex items-center justify-between gap-4 sm:gap-8 px-4 sm:px-6 py-3.5 sm:py-4 bg-white border-b border-slate-200">
-        {/* Zone 1: Single text element wordmark */}
+        {/* Zone 1: Brand Emblem + Wordmark */}
         <a
           href="#directory"
           onClick={(e) => {
             e.preventDefault();
             setActiveSection('directory');
           }}
-          className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 font-display whitespace-nowrap shrink-0"
+          className="shrink-0 focus:outline-none"
         >
-          AdvokaID
+          <AdvokaIdLogo size="md" showTagline />
         </a>
 
         {/* Zone 2: 4 concise single-line text navigation links */}
@@ -546,7 +546,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center justify-between sm:justify-end gap-3 text-[11px] sm:text-xs text-slate-300">
-            <PWAInstallButton />
             <span>
               Koneksi:{' '}
               <strong className={wsConnected ? 'text-emerald-400' : 'text-amber-400'}>
@@ -1314,8 +1313,11 @@ export default function App() {
       {/* QUIET FOOTER */}
       <footer className="mt-8 sm:mt-12 border-t border-slate-200 bg-white px-4 sm:px-6 py-5 text-xs text-slate-500">
         <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-          <div>
-            <strong className="text-slate-800 font-display">AdvokaID</strong> — Platform Konsultasi Hukum & Telaah Kontrak Real-Time Indonesia.
+          <div className="flex items-center gap-2.5">
+            <AdvokaIdLogo size="sm" />
+            <span className="text-slate-500">
+              — Platform Konsultasi Hukum &amp; Telaah Kontrak Real-Time Indonesia.
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <span>Rahasia Jabatan Advokat Pasal 19 UU No. 18/2003</span>

@@ -1,10 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="112" fill="#0F172A"/>
-  <rect x="36" y="36" width="440" height="440" rx="84" stroke="#B45309" stroke-width="6" stroke-opacity="0.45"/>
-  <path d="M256 108V384" stroke="#F59E0B" stroke-width="22" stroke-linecap="round"/>
-  <path d="M168 384H344" stroke="#F59E0B" stroke-width="24" stroke-linecap="round"/>
-  <path d="M136 164H376" stroke="#F8FAFC" stroke-width="18" stroke-linecap="round"/>
-  <path d="M156 164L116 268H196L156 164Z" fill="#F59E0B" stroke="#F8FAFC" stroke-width="10" stroke-linejoin="round"/>
-  <path d="M356 164L316 268H396L356 164Z" fill="#F59E0B" stroke="#F8FAFC" stroke-width="10" stroke-linejoin="round"/>
-  <circle cx="256" cy="108" r="20" fill="#F59E0B"/>
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <path d="M256 56L408 116V244C408 345.6 343.2 422.4 256 456C168.8 422.4 104 345.6 104 244V116L256 56Z" fill="#0F172A" stroke="url(#goldGrad)" stroke-width="20" stroke-linejoin="round"/>
+  <path d="M256 84L380 134.4V241.6C380 326.4 326.4 392.8 256 423.2C185.6 392.8 132 326.4 132 241.6V134.4L256 84Z" stroke="#F59E0B" stroke-opacity="0.3" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M256 128V352" stroke="url(#goldGrad)" stroke-width="24" stroke-linecap="round"/>
+  <path d="M192 356H320" stroke="url(#goldGrad)" stroke-width="24" stroke-linecap="round"/>
+  <path d="M216 384H296" stroke="#F8FAFC" stroke-opacity="0.75" stroke-width="16" stroke-linecap="round"/>
+  <path d="M152 188L256 168L360 188" stroke="#F8FAFC" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M168 188L140 260H196L168 188Z" fill="url(#goldGrad)" stroke="#F8FAFC" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M134 262C134 278 149 290 168 290C187 290 202 278 202 262H134Z" fill="url(#goldGrad)"/>
+  <path d="M344 188L316 260H372L344 188Z" fill="url(#goldGrad)" stroke="#F8FAFC" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M310 262C310 278 325 290 344 290C363 290 378 278 378 262H310Z" fill="url(#goldGrad)"/>
+  <circle cx="256" cy="128" r="20" fill="#FBBF24" stroke="#0F172A" stroke-width="8"/>
 </svg>
