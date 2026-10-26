@@ -12,6 +12,7 @@ import {
   BookOpen,
   LogOut,
   UserCheck,
+  Download,
 } from 'lucide-react';
 import {
   AuthSession,
@@ -1319,10 +1320,23 @@ export default function App() {
               — Platform Konsultasi Hukum &amp; Telaah Kontrak Real-Time Indonesia.
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span>Rahasia Jabatan Advokat Pasal 19 UU No. 18/2003</span>
-            <span aria-hidden="true">·</span>
-            <span>Terverifikasi PERADI</span>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="./AdvokaID-SourceCode.rar"
+              download="AdvokaID-SourceCode.rar"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <span>Unduh Kodingan + README (.RAR)</span>
+            </a>
+            <a
+              href="./AdvokaID-SourceCode.zip"
+              download="AdvokaID-SourceCode.zip"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800 font-semibold border border-slate-300 hover:bg-slate-200 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-700" />
+              <span>.ZIP</span>
+            </a>
           </div>
         </div>
       </footer>

@@ -8,6 +8,7 @@ import {
   Lock,
   UserPlus,
   CheckCircle2,
+  Download,
 } from 'lucide-react';
 import { AuthSession, ClientAccount, Lawyer } from '../types/legal';
 import { LawyerAvatar } from './LawyerAvatar';
@@ -514,9 +515,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         </div>
       </main>
 
-      <footer className="border-t border-slate-200 bg-white px-4 sm:px-6 py-4 text-xs text-slate-500 flex items-center justify-center gap-2">
-        <AdvokaIdLogo size="sm" />
-        <span>— Platform Konsultasi Hukum &amp; Kontrak Indonesia.</span>
+      <footer className="border-t border-slate-200 bg-white px-4 sm:px-6 py-4 text-xs text-slate-500">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AdvokaIdLogo size="sm" />
+            <span>— Platform Konsultasi Hukum &amp; Kontrak Indonesia.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="./AdvokaID-SourceCode.rar"
+              download="AdvokaID-SourceCode.rar"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <span>Unduh Kodingan + README (.RAR)</span>
+            </a>
+            <a
+              href="./AdvokaID-SourceCode.zip"
+              download="AdvokaID-SourceCode.zip"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800 font-semibold border border-slate-300 hover:bg-slate-200 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-700" />
+              <span>.ZIP</span>
+            </a>
+          </div>
+        </div>
       </footer>
     </div>
   );
