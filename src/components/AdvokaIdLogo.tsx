@@ -145,9 +145,9 @@ export const AdvokaIdLogo: React.FC<AdvokaIdLogoProps> = ({
         </div>
         {showTagline && (
           <span
-            className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 ${taglineColor}`}
+            className={`text-[10px] font-medium uppercase tracking-wider mt-0.5 ${taglineColor}`}
           >
-            Legal &amp; Contract Chambers
+            Konsultasi Hukum &amp; Kontrak
           </span>
         )}
       </div>

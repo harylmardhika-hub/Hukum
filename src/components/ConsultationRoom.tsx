@@ -173,7 +173,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
     activeRole === 'client'
       ? [
           'Apakah klausul denda ini dapat dibatalkan?',
-          'Mohon buatkan rumusan counter-draft.',
+          'Mohon buatkan usulan revisi pasal ini.',
           'Apa langkah jika pihak lawan wanprestasi?',
         ]
       : [
@@ -518,7 +518,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-800 mb-1">
-                    Kesimpulan Analisis Hukum (Legal Opinion)
+                    Kesimpulan Pendapat Hukum
                   </label>
                   <textarea
                     rows={4}

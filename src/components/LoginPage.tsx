@@ -212,7 +212,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               <div className="pb-3 border-b border-slate-800/80 flex items-center justify-between">
                 <AdvokaIdLogo size="sm" theme="dark" />
                 <span className="text-[11px] font-mono text-amber-400/90 uppercase tracking-wider">
-                  Verified Chambers
+                  Terdaftar PERADI
                 </span>
               </div>
               <div className="text-xs font-semibold text-amber-400">

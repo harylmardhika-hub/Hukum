@@ -392,7 +392,7 @@ export const ContractReviewerPanel: React.FC<ContractReviewerPanelProps> = ({
                     {clause.proposedRevision && (
                       <div className="p-3 rounded-lg bg-emerald-50/60 border border-emerald-200 text-xs text-emerald-950 leading-relaxed">
                         <div className="text-[11px] font-semibold text-emerald-800 mb-0.5">
-                          Usulan Revisi (Counter-Draft):
+                          Usulan Perbaikan Pasal:
                         </div>
                         {clause.proposedRevision}
                       </div>
@@ -440,7 +440,7 @@ export const ContractReviewerPanel: React.FC<ContractReviewerPanelProps> = ({
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-800 mb-1">
-                        Usulan Redaksi Pengganti (Counter-Draft)
+                        Usulan Perbaikan Pasal
                       </label>
                       <textarea
                         rows={3}

@@ -19,14 +19,14 @@ export const INITIAL_CLIENTS: ClientAccount[] = [
     id: 'cli-2',
     name: 'Nadia Karina Putri',
     email: 'nadia.karina@techcorp.id',
-    company: 'VP Product — Perusahaan Teknologi',
+    company: 'Manajer Produk — Perusahaan Teknologi',
     phone: '0812-9031-442',
   },
   {
     id: 'cli-3',
     name: 'Hendra Wijaya',
     email: 'hendra.wijaya@cilandakproperti.id',
-    company: 'Akuisisi Ruko Komersial Cilandak',
+    company: 'Pembelian Ruko Komersial Cilandak',
     phone: '0813-1128-705',
   },
 ];
@@ -36,7 +36,7 @@ export const INITIAL_LAWYERS: Lawyer[] = [
     id: 'lw-1',
     name: 'Rendra Mahendra, S.H., LL.M.',
     email: 'rendra.mahendra@advokaid.id',
-    title: 'Managing Partner — Hukum Korporasi & Kontrak Komersial',
+    title: 'Advokat Utama — Hukum Korporasi & Kontrak Bisnis',
     niaPeradi: 'NIA. 12.04819',
     specialty: 'Hukum Bisnis & Korporasi',
     secondarySpecialties: [
@@ -70,7 +70,7 @@ export const INITIAL_LAWYERS: Lawyer[] = [
     id: 'lw-2',
     name: 'Anindya Pramesti, S.H., M.H., C.L.A.',
     email: 'anindya.pramesti@advokaid.id',
-    title: 'Senior Counsel — Hukum Ketenagakerjaan & Hubungan Industrial',
+    title: 'Advokat Senior — Hukum Ketenagakerjaan & Hubungan Industrial',
     niaPeradi: 'NIA. 15.08342',
     specialty: 'Hukum Ketenagakerjaan',
     secondarySpecialties: [
@@ -86,9 +86,9 @@ export const INITIAL_LAWYERS: Lawyer[] = [
     casesHandled: 274,
     responseTimeMinutes: 3,
     isOnline: true,
-    bio: 'Ahli hukum ketenagakerjaan dan auditor hukum bersertifikat (C.L.A.) yang mendampingi pekerja eksekutif maupun korporasi dalam negosiasi bipartit, tripartit Disnaker, hingga litigasi di Pengadilan Hubungan Industrial sesuai UU Cipta Kerja & PP No. 35/2021.',
+    bio: 'Ahli hukum ketenagakerjaan dan auditor hukum bersertifikat (C.L.A.) yang mendampingi pekerja maupun perusahaan dalam perundingan bipartit, mediasi Disnaker, hingga persidangan di Pengadilan Hubungan Industrial sesuai UU Cipta Kerja & PP No. 35/2021.',
     notableCredentials: [
-      'Certified Legal Auditor (C.L.A.) — Jimly School of Law',
+      'Auditor Hukum Bersertifikat (C.L.A.) — Jimly School of Law',
       'Kuasa Hukum Khusus Pengadilan Hubungan Industrial (PHI)',
       'Anggota Komite Advokasi Ketenagakerjaan PERADI Jakarta',
     ],
@@ -104,13 +104,13 @@ export const INITIAL_LAWYERS: Lawyer[] = [
     id: 'lw-3',
     name: 'Dr. Bagaskara Wibisono, S.H., M.Kn.',
     email: 'bagaskara.wibisono@advokaid.id',
-    title: 'Partner — Hukum Perdata, Pertanahan & Wanprestasi',
+    title: 'Advokat Senior — Hukum Perdata, Pertanahan & Wanprestasi',
     niaPeradi: 'NIA. 09.01924',
     specialty: 'Hukum Perdata',
     secondarySpecialties: [
       'Sengketa Tanah & SHM/SHGB',
       'Gugatan Wanprestasi & PMH',
-      'Akta PPJB & Sewa Komersial',
+      'Akta PPJB & Sewa Properti',
     ],
     experienceYears: 17,
     jurisdiction: 'PN Jakarta Barat & PN Tangerang',
@@ -120,11 +120,11 @@ export const INITIAL_LAWYERS: Lawyer[] = [
     casesHandled: 412,
     responseTimeMinutes: 4,
     isOnline: true,
-    bio: 'Spesialis sengketa perdata umum, uji tuntas pertanahan (legal due diligence properti), akta Perjanjian Pengikatan Jual Beli (PPJB), serta gugatan Wanprestasi dan Perbuatan Melawan Hukum (Pasal 1365 KUHPerdata).',
+    bio: 'Spesialis sengketa perdata umum, pemeriksaan keabsahan sertifikat tanah dan properti, akta Perjanjian Pengikatan Jual Beli (PPJB), serta gugatan Wanprestasi dan Perbuatan Melawan Hukum (Pasal 1365 KUHPerdata).',
     notableCredentials: [
       'Doktor Ilmu Hukum Keperdataan Universitas Padjadjaran',
-      'Magister Kenotariatan (M.Kn.) dengan Keahlian Agraria & Pertanahan',
-      '17 Tahun Praktik Litigasi Perdata & Eksekusi Jaminan',
+      'Magister Kenotariatan (M.Kn.) dengan Keahlian Pertanahan',
+      '17 Tahun Praktik Sidang Perdata & Eksekusi Jaminan',
     ],
     avatarStyle: {
       bgGradient: 'from-slate-900 to-zinc-900',
@@ -139,13 +139,13 @@ export const INITIAL_LAWYERS: Lawyer[] = [
     id: 'lw-4',
     name: 'Larasati Kusumawardhani, S.H., M.H.',
     email: 'larasati.kusuma@advokaid.id',
-    title: 'Senior Partner — Hukum Keluarga, Waris & Harta Bersama',
+    title: 'Advokat Senior — Hukum Keluarga, Waris & Harta Bersama',
     niaPeradi: 'NIA. 13.06210',
     specialty: 'Hukum Keluarga & Waris',
     secondarySpecialties: [
       'Pembagian Waris (Perdata & Islam)',
       'Perjanjian Pranikah & Pisah Harta',
-      'Hak Asuh & Harta Gono-Gini',
+      'Hak Asuh & Harta Bersama',
     ],
     experienceYears: 12,
     jurisdiction: 'PN Jakarta Selatan & Pengadilan Agama',
@@ -155,10 +155,10 @@ export const INITIAL_LAWYERS: Lawyer[] = [
     casesHandled: 289,
     responseTimeMinutes: 2,
     isOnline: true,
-    bio: 'Menangani penyelesaian sengketa keluarga dengan pendekatan humanis dan kerahasiaan tinggi, meliputi fatwa dan pembagian waris (KUHPerdata maupun Kompilasi Hukum Islam), perjanjian perkawinan (prenuptial/postnuptial agreement), serta mediasi harta bersama.',
+    bio: 'Menangani penyelesaian sengketa keluarga dengan pendekatan humanis dan kerahasiaan tinggi, meliputi pembagian waris (KUHPerdata maupun Kompilasi Hukum Islam), perjanjian pranikah maupun pascanikah, serta mediasi harta bersama.',
     notableCredentials: [
       'Mediator Keluarga Bersertifikat Mahkamah Agung RI',
-      'Spesialis Hukum Waris Perdata Barat & Hukum Kewarisan Islam',
+      'Spesialis Hukum Waris Perdata & Hukum Kewarisan Islam',
       'Penasihat Hukum Perwalian & Perlindungan Aset Keluarga',
     ],
     avatarStyle: {
@@ -173,7 +173,7 @@ export const INITIAL_LAWYERS: Lawyer[] = [
     id: 'lw-5',
     name: 'Tegar Prawira Negara, S.H., M.H.',
     email: 'tegar.prawira@advokaid.id',
-    title: 'Managing Litigator — Hukum Pidana Khusus & Siber',
+    title: 'Advokat Utama — Hukum Pidana & Kejahatan Siber',
     niaPeradi: 'NIA. 11.03385',
     specialty: 'Hukum Pidana',
     secondarySpecialties: [
@@ -232,7 +232,7 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
           'Apabila PIHAK KEDUA gagal mencapai target pembelian minimum sebesar Rp 1.500.000.000 per kuartal dalam kondisi apa pun termasuk gangguan rantai pasok dari PIHAK PERTAMA, maka PIHAK KEDUA wajib membayar kompensasi kekurangan kuota sebesar 40% secara tunai seketika.',
         riskStatus: 'critical',
         lawyerNote:
-          'BERISIKO TINGGI: Membebankan denda 40% kepada Pihak Kedua bahkan ketika kegagalan pasokan berasal dari Pihak Pertama sangat berat sebelah dan berpotensi batal demi hukum karena penyalahgunaan keadaan (misbruik van omstandigheden).',
+          'BERISIKO TINGGI: Membebankan denda 40% kepada Pihak Kedua bahkan ketika kegagalan pasokan berasal dari Pihak Pertama sangat berat sebelah dan berpotensi batal demi hukum karena penyalahgunaan keadaan.',
         proposedRevision:
           'Kewajiban pencapaian target pembelian minimum dikecualikan apabila terjadi keterlambatan pengiriman atau kelangkaan stok dari PIHAK PERTAMA. Apabila kekurangan kuota murni disebabkan oleh kelalaian PIHAK KEDUA selama 2 (dua) kuartal berturut-turut, sanksi berupa evaluasi status eksklusivitas tanpa denda tunai sepihak.',
       },
@@ -243,41 +243,41 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
           'Pembayaran tagihan wajib dilunasi paling lambat 14 (empat belas) hari kalender sejak tanggal faktur diterbitkan. Keterlambatan pembayaran dikenakan denda sebesar 1% (satu persen) per hari tanpa batas maksimum.',
         riskStatus: 'warning',
         lawyerNote:
-          'PERLU REVISI: Denda 1% per hari (setara 365% per tahun) tanpa batas atas (cap) terlalu eksesif dalam praktik hukum dagang Indonesia.',
+          'PERLU REVISI: Denda 1% per hari (setara 365% per tahun) tanpa batas maksimum terlalu memberatkan dalam praktik hukum dagang Indonesia.',
         proposedRevision:
           'Pembayaran tagihan wajib dilunasi paling lambat 30 (tiga puluh) hari kalender sejak barang diterima lengkap (Berita Acara Serah Terima). Keterlambatan pembayaran dikenakan denda sebesar 0,1% per hari dengan batas maksimum akumulasi denda 5% dari nilai faktur terkait.',
       },
       {
         clauseNumber: 'Pasal 4',
-        title: 'Pengakhiran Sepihak & Pengesampingan Pasal 1266 KUHPerdata',
+        title: 'Pengakhiran Sepihak & Pembelian Kembali Sisa Stok',
         originalText:
           'PIHAK PERTAMA berhak mengakhiri Perjanjian ini secara sepihak sewaktu-waktu dengan pemberitahuan tertulis 3 (tiga) hari sebelumnya tanpa kewajiban membeli kembali sisa stok barang yang telah dibayar oleh PIHAK KEDUA.',
         riskStatus: 'critical',
         lawyerNote:
-          'BERISIKO TINGGI: Pemberitahuan 3 hari tanpa buyback stok membuat Pihak Kedua menanggung kerugian modal kerja yang besar.',
+          'BERISIKO TINGGI: Pemberitahuan 3 hari tanpa kewajiban membeli kembali sisa stok membuat Pihak Kedua menanggung kerugian modal kerja yang besar.',
         proposedRevision:
-          'Pengakhiran Perjanjian sebelum berakhirnya jangka waktu hanya dapat dilakukan atas dasar pelanggaran material yang tidak diperbaiki dalam 30 hari setelah surat teguran (somasi), dan wajib disertai pemberitahuan 60 hari sebelumnya serta kewajiban PIHAK PERTAMA membeli kembali (buyback) stok barang layak jual pada harga beli awal.',
+          'Pengakhiran Perjanjian sebelum berakhirnya jangka waktu hanya dapat dilakukan atas dasar pelanggaran berat yang tidak diperbaiki dalam 30 hari setelah surat teguran (somasi), dan wajib disertai pemberitahuan 60 hari sebelumnya serta kewajiban PIHAK PERTAMA membeli kembali sisa stok barang layak jual pada harga beli awal.',
       },
     ],
   },
   {
     id: 'tpl-pkwt-eksekutif',
-    title: 'Perjanjian Kerja Waktu Tertentu (PKWT) & Klausul Non-Kompetisi',
+    title: 'Perjanjian Kerja Waktu Tertentu (PKWT) & Kerahasiaan Perusahaan',
     documentType: 'Kontrak Ketenagakerjaan (PP 35/2021)',
     category: 'Hukum Ketenagakerjaan',
     description:
-      'Naskah kontrak kerja profesional dengan klausul uang kompensasi PKWT, kerahasiaan dagang, dan pembatasan pindah ke kompetitor.',
+      'Naskah kontrak kerja profesional dengan klausul uang kompensasi PKWT, kerahasiaan perusahaan, dan aturan pindah ke perusahaan kompetitor.',
     clauses: [
       {
         clauseNumber: 'Pasal 1',
-        title: 'Jangka Waktu PKWT & Masa Percobaan (Probation)',
+        title: 'Jangka Waktu PKWT & Masa Percobaan',
         originalText:
-          'Perjanjian Kerja Waktu Tertentu (PKWT) ini berlaku selama 24 (dua puluh empat) bulan dengan masa percobaan (probation) selama 3 (tiga) bulan pertama di mana Perusahaan dapat memutuskan hubungan kerja tanpa kompensasi.',
+          'Perjanjian Kerja Waktu Tertentu (PKWT) ini berlaku selama 24 (dua puluh empat) bulan dengan masa percobaan selama 3 (tiga) bulan pertama di mana Perusahaan dapat memutuskan hubungan kerja tanpa kompensasi.',
         riskStatus: 'critical',
         lawyerNote:
           'MELANGGAR UNDANG-UNDANG: Berdasarkan Pasal 58 ayat (1) UU Ketenagakerjaan jo. UU Cipta Kerja dan PP No. 35 Tahun 2021, PKWT DILARANG mensyaratkan masa percobaan. Jika disyaratkan, masa percobaan batal demi hukum dan masa kerja tetap dihitung.',
         proposedRevision:
-          'Perjanjian Kerja Waktu Tertentu (PKWT) ini berlaku selama 24 (dua puluh empat) bulan terhitung sejak tanggal efektif bekerja tanpa adanya masa percobaan (probation), sesuai ketentuan PP No. 35 Tahun 2021.',
+          'Perjanjian Kerja Waktu Tertentu (PKWT) ini berlaku selama 24 (dua puluh empat) bulan terhitung sejak tanggal efektif bekerja tanpa adanya masa percobaan, sesuai ketentuan PP No. 35 Tahun 2021.',
       },
       {
         clauseNumber: 'Pasal 2',
@@ -292,7 +292,7 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       },
       {
         clauseNumber: 'Pasal 3',
-        title: 'Klausul Non-Kompetisi (Non-Compete Clause)',
+        title: 'Larangan Pindah ke Perusahaan Kompetitor',
         originalText:
           'Pekerja dilarang bekerja pada perusahaan sejenis atau mendirikan usaha di bidang teknologi informasi di seluruh wilayah Republik Indonesia selama 5 (lima) tahun setelah berakhirnya hubungan kerja.',
         riskStatus: 'warning',
@@ -318,7 +318,7 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
           'PIHAK PENJUAL menjamin bahwa sebidang tanah Sertifikat Hak Milik (SHM) Nomor 04192/Cilandak seluas 450 m2 adalah sah milik Penjual, bebas dari sita jaminan, sengketa waris, maupun hak tanggungan bank.',
         riskStatus: 'safe',
         lawyerNote:
-          'Rumusan jaminan (representations & warranties) sudah tepat. Pastikan dilakukan pengecekan fisik sertifikat (plotting BPN) sebelum pembayaran uang muka.',
+          'Rumusan jaminan status tanah sudah tepat. Pastikan dilakukan pengecekan fisik sertifikat di kantor BPN sebelum pembayaran uang muka.',
         proposedRevision: '',
       },
       {
@@ -328,7 +328,7 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
           'Seluruh pajak, bea perolehan hak atas tanah dan bangunan (BPHTB), Pajak Penghasilan (PPh) pengalihan hak atas tanah, serta tunggakan PBB tahun-tahun sebelumnya ditanggung sepenuhnya oleh PIHAK PEMBELI.',
         riskStatus: 'warning',
         lawyerNote:
-          'PERLU REVISI: Secara normatif (PP No. 34 Tahun 2016), PPh Final (2,5%) adalah kewajiban Penjual dan tunggakan PBB sebelum transaksi adalah tanggung jawab Penjual.',
+          'PERLU REVISI: Sesuai PP No. 34 Tahun 2016, PPh Final (2,5%) adalah kewajiban Penjual dan tunggakan PBB sebelum transaksi adalah tanggung jawab Penjual.',
         proposedRevision:
           'Pajak Penghasilan (PPh Final 2,5%) atas pengalihan hak serta pelunasan PBB hingga tahun berjalan ditanggung oleh PIHAK PENJUAL, sedangkan Bea Perolehan Hak atas Tanah dan Bangunan (BPHTB 5%) dan biaya balik nama SHM ditanggung oleh PIHAK PEMBELI.',
       },
@@ -339,9 +339,9 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
           'Apabila PIHAK PEMBELI telah melunasi 100% harga jual beli namun PIHAK PENJUAL berhalangan hadir untuk menandatangani Akta Jual Beli (AJB), maka penandatanganan AJB ditunda sampai PIHAK PENJUAL bersedia hadir.',
         riskStatus: 'critical',
         lawyerNote:
-          'BERISIKO TINGGI: Tanpa klausul Kuasa Menjual mutlak pada PPJB Lunas, Pembeli yang sudah membayar 100% berisiko tersandera jika Penjual mangkir atau sulit dihubungi saat akan balik nama di PPAT.',
+          'BERISIKO TINGGI: Tanpa klausul Kuasa Menjual mutlak pada PPJB Lunas, Pembeli yang sudah membayar 100% berisiko dirugikan jika Penjual mangkir atau sulit dihubungi saat akan balik nama di PPAT.',
         proposedRevision:
-          'Dengan lunasnya 100% harga jual beli, PPJB ini sekaligus berlaku sebagai Kuasa Menjual yang tidak dapat ditarik kembali (onherroepelijke volmacht) dari PIHAK PENJUAL kepada PIHAK PEMBELI untuk menghadap PPAT dan menandatangani Akta Jual Beli (AJB).',
+          'Dengan lunasnya 100% harga jual beli, PPJB ini sekaligus berlaku sebagai Kuasa Menjual yang tidak dapat ditarik kembali dari PIHAK PENJUAL kepada PIHAK PEMBELI untuk menghadap PPAT dan menandatangani Akta Jual Beli (AJB).',
       },
     ],
   },
@@ -360,10 +360,10 @@ export const INITIAL_SESSIONS: ConsultationSession[] = [
     status: 'Aktif',
     startedAt: '14:10 WIB',
     legalOpinionSummary:
-      'Berdasarkan telaah awal atas Draf PKS Distribusi PT Nusantara Pangan, terdapat 2 klausul berisiko tinggi (Pasal 2 mengenai Denda Kuota 40% dan Pasal 4 mengenai Pengakhiran Sepihak 3 Hari tanpa Buyback) yang perlu direvisi sebelum penandatanganan agar posisi hukum Klien terlindungi dari potensi sengketa wanprestasi.',
+      'Berdasarkan telaah awal atas Draf PKS Distribusi PT Nusantara Pangan, terdapat 2 klausul berisiko tinggi (Pasal 2 mengenai Denda Kuota 40% dan Pasal 4 mengenai Pengakhiran Sepihak 3 Hari tanpa Pembelian Kembali Stok) yang perlu direvisi sebelum penandatanganan agar posisi hukum Klien terlindungi dari potensi sengketa wanprestasi.',
     recommendedNextSteps: [
-      'Ajukan usulan redaksi pengganti (counter-draft) pada Pasal 2 dan Pasal 4 kepada pihak prinsipal.',
-      'Tambahkan batas maksimum (cap) denda keterlambatan sebesar 5% pada Pasal 3.',
+      'Ajukan usulan perbaikan pasal pada Pasal 2 dan Pasal 4 kepada pihak prinsipal.',
+      'Tambahkan batas maksimum denda keterlambatan sebesar 5% pada Pasal 3.',
       'Pastikan klausul penyelesaian sengketa menunjuk BANI Jakarta atau PN Jakarta Selatan secara tegas.',
     ],
     unreadClientCount: 0,
@@ -374,18 +374,18 @@ export const INITIAL_SESSIONS: ConsultationSession[] = [
     caseNumber: 'REG/2026/PHI-0319',
     clientId: 'cli-2',
     clientName: 'Nadia Karina Putri',
-    clientCompany: 'VP Product — Perusahaan Teknologi',
+    clientCompany: 'Manajer Produk — Perusahaan Teknologi',
     lawyerId: 'lw-2',
-    title: 'Evaluasi Kontrak PKWT Eksekutif & Hak Uang Kompensasi PP 35/2021',
+    title: 'Evaluasi Kontrak Kerja PKWT & Hak Uang Kompensasi PP 35/2021',
     category: 'Hukum Ketenagakerjaan',
     status: 'Menunggu Tinjauan Kontrak',
     startedAt: '15:05 WIB',
     legalOpinionSummary:
-      'Klausul masa percobaan (probation) 3 bulan di dalam kontrak PKWT batal demi hukum berdasarkan Pasal 58 UU Ketenagakerjaan jo. PP No. 35 Tahun 2021. Selain itu, Klien tetap berhak atas Uang Kompensasi PKWT secara proporsional.',
+      'Klausul masa percobaan 3 bulan di dalam kontrak PKWT batal demi hukum berdasarkan Pasal 58 UU Ketenagakerjaan jo. PP No. 35 Tahun 2021. Selain itu, Klien tetap berhak atas Uang Kompensasi PKWT secara proporsional.',
     recommendedNextSteps: [
-      'Minta HR/Perusahaan menghapus Pasal 1 terkait masa percobaan 3 bulan pada kontrak PKWT.',
+      'Minta pihak HR/Perusahaan menghapus Pasal 1 terkait masa percobaan 3 bulan pada kontrak PKWT.',
       'Cantumkan hak Uang Kompensasi PKWT sesuai Pasal 15 PP No. 35 Tahun 2021.',
-      'Persempit cakupan klausul Non-Kompetisi (Pasal 3) menjadi maksimal 6 bulan pada kompetitor langsung.',
+      'Persempit cakupan larangan pindah ke kompetitor (Pasal 3) menjadi maksimal 6 bulan pada kompetitor langsung.',
     ],
     unreadClientCount: 1,
     unreadLawyerCount: 0,
@@ -395,17 +395,17 @@ export const INITIAL_SESSIONS: ConsultationSession[] = [
     caseNumber: 'REG/2026/PDT-0592',
     clientId: 'cli-3',
     clientName: 'Hendra Wijaya',
-    clientCompany: 'Akuisisi Ruko Komersial Cilandak',
+    clientCompany: 'Pembelian Ruko Komersial Cilandak',
     lawyerId: 'lw-3',
-    title: 'Uji Tuntas & Peninjauan Akta PPJB Tanah SHM Cilandak',
+    title: 'Pemeriksaan & Peninjauan Akta PPJB Tanah SHM Cilandak',
     category: 'Hukum Perdata',
     status: 'Opini Hukum Terbit',
     startedAt: '11:30 WIB',
     legalOpinionSummary:
       'Draf PPJB memerlukan penambahan klausul Kuasa Menjual Mutlak (Pasal 3) setelah pelunasan 100% serta pemisahan beban pajak PPh Final 2,5% kepada Penjual dan BPHTB 5% kepada Pembeli (Pasal 2).',
     recommendedNextSteps: [
-      'Lakukan pengecekan bersih (clean check) SHM No. 04192 di Kantor Pertanahan (BPN) Jakarta Selatan melalui PPAT.',
-      'Gunakan rumusan revisi Pasal 2 dan Pasal 3 sebelum membayar uang muka (down payment).',
+      'Lakukan pengecekan keaslian SHM No. 04192 di Kantor Pertanahan (BPN) Jakarta Selatan melalui PPAT.',
+      'Gunakan rumusan revisi Pasal 2 dan Pasal 3 sebelum membayar uang muka.',
     ],
     unreadClientCount: 0,
     unreadLawyerCount: 0,
@@ -489,10 +489,10 @@ export const INITIAL_MESSAGES: ChatMessage[] = [
     senderRole: 'lawyer',
     senderName: 'Rendra Mahendra, S.H., LL.M.',
     content:
-      'Pada Pasal 2, Anda diwajibkan membayar denda tunai 40% meskipun kegagalan kuota disebabkan oleh keterlambatan pasokan dari pihak prinsipal sendiri. Saya telah menandai Pasal 2 sebagai Berisiko Tinggi di panel Tinjauan Kontrak sebelah kanan beserta usulan redaksi penggantinya.',
+      'Pada Pasal 2, Anda diwajibkan membayar denda tunai 40% meskipun kegagalan kuota disebabkan oleh keterlambatan pasokan dari pihak prinsipal sendiri. Saya telah menandai Pasal 2 sebagai Berisiko Tinggi di panel Tinjauan Kontrak sebelah kanan beserta usulan perbaikan pasalnya.',
     timestamp: '14:25 WIB',
     referencedClauseId: 'cl-201-4',
-    referencedClauseLabel: 'Pasal 4 — Pengakhiran Sepihak & Buyback Stok',
+    referencedClauseLabel: 'Pasal 4 — Pengakhiran Sepihak & Pembelian Kembali Stok',
   },
   {
     id: 'msg-4',
@@ -511,7 +511,7 @@ export const INITIAL_MESSAGES: ChatMessage[] = [
     senderRole: 'client',
     senderName: 'Nadia Karina Putri',
     content:
-      'Halo Bu Anindya, saya baru menerima penawaran kontrak PKWT selama 2 tahun untuk posisi VP Product, namun di Pasal 1 tertulis ada masa probation 3 bulan dan di Pasal 2 disebutkan tidak ada uang kompensasi saat kontrak selesai. Apakah ini sesuai aturan?',
+      'Halo Bu Anindya, saya baru menerima penawaran kontrak PKWT selama 2 tahun untuk posisi Manajer Produk, namun di Pasal 1 tertulis ada masa percobaan 3 bulan dan di Pasal 2 disebutkan tidak ada uang kompensasi saat kontrak selesai. Apakah ini sesuai aturan?',
     timestamp: '15:08 WIB',
     attachedDocumentId: 'doc-202',
     attachedDocumentTitle: 'Kontrak_PKWT_VP_Product_2026.pdf',
@@ -522,7 +522,7 @@ export const INITIAL_MESSAGES: ChatMessage[] = [
     senderRole: 'lawyer',
     senderName: 'Anindya Pramesti, S.H., M.H., C.L.A.',
     content:
-      'Selamat sore Ibu Nadia. Berdasarkan Pasal 58 UU Ketenagakerjaan jo. PP No. 35 Tahun 2021, kontrak PKWT sama sekali tidak boleh memuat syarat masa percobaan (probation). Jika tetap dicantumkan, masa percobaan tersebut batal demi hukum. Silakan cek anotasi hukum dan draf revisi yang sudah saya siapkan pada Pasal 1 dan Pasal 2 di panel kanan.',
+      'Selamat sore Ibu Nadia. Berdasarkan Pasal 58 UU Ketenagakerjaan jo. PP No. 35 Tahun 2021, kontrak PKWT sama sekali tidak boleh memuat syarat masa percobaan. Jika tetap dicantumkan, masa percobaan tersebut batal demi hukum. Silakan cek catatan hukum dan usulan perbaikan pasal yang sudah saya siapkan pada Pasal 1 dan Pasal 2 di panel kanan.',
     timestamp: '15:18 WIB',
     referencedClauseId: 'cl-202-1',
     referencedClauseLabel: 'Pasal 1 — Jangka Waktu PKWT & Masa Percobaan',

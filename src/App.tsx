@@ -901,7 +901,7 @@ export default function App() {
             <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-display">
-                  Bilik Dokumen & Kontrak Hukum ({authSession.name})
+                  Daftar Dokumen &amp; Kontrak Hukum ({authSession.name})
                 </h1>
                 <p className="text-xs text-slate-600 mt-1">
                   Menampilkan dokumen kontrak yang terhubung khusus dengan sesi perkara Anda.

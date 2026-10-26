@@ -262,7 +262,7 @@ async function startServer() {
               'Sesi konsultasi baru telah dibuka. Advokat sedang menelaah kronologi perkara dan dokumen yang dilampirkan.',
             recommendedNextSteps: [
               'Sampaikan kronologi fakta hukum dan bukti tertulis yang dimiliki.',
-              'Lampirkan draf kontrak pada panel Tinjauan Kontrak jika membutuhkan redlining pasal.',
+              'Lampirkan draf kontrak pada panel Tinjauan Kontrak jika membutuhkan revisi pasal.',
             ],
             unreadClientCount: 0,
             unreadLawyerCount: 1,
