@@ -38,6 +38,49 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  // Client-side fallback authentication so the app also works on static hosts like GitHub Pages (github.io)
+  const fallbackLocalLogin = (
+    role: 'client' | 'lawyer',
+    opts: { userId?: string; identifier?: string }
+  ): AuthSession | null => {
+    const q = (opts.identifier || '').toLowerCase().trim();
+    if (role === 'client') {
+      const client = opts.userId
+        ? clients.find((c) => c.id === opts.userId)
+        : clients.find(
+            (c) =>
+              c.email.toLowerCase() === q || c.name.toLowerCase().includes(q)
+          );
+      if (!client) return null;
+      return {
+        token: `tok-cli-${client.id}-${Date.now()}`,
+        role: 'client',
+        userId: client.id,
+        name: client.name,
+        email: client.email,
+        subtitle: client.company || 'Klien Perseorangan',
+      };
+    } else {
+      const lawyer = opts.userId
+        ? lawyers.find((l) => l.id === opts.userId)
+        : lawyers.find(
+            (l) =>
+              l.email.toLowerCase() === q ||
+              l.niaPeradi.toLowerCase().includes(q) ||
+              l.name.toLowerCase().includes(q)
+          );
+      if (!lawyer) return null;
+      return {
+        token: `tok-lw-${lawyer.id}-${Date.now()}`,
+        role: 'lawyer',
+        userId: lawyer.id,
+        name: lawyer.name,
+        email: lawyer.email,
+        subtitle: `${lawyer.niaPeradi} · ${lawyer.specialty}`,
+      };
+    }
+  };
+
   const handlePortalSwitch = (role: 'client' | 'lawyer') => {
     setPortalRole(role);
     setErrorMsg(null);
@@ -57,16 +100,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, userId }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error || 'Gagal masuk.');
-      } else {
+      if (res.ok) {
+        const data = await res.json();
         onAuthenticated(data as AuthSession);
+        return;
       }
     } catch {
-      setErrorMsg('Gagal menghubungi server.');
+      // Static hosting fallback (GitHub Pages)
     } finally {
       setIsLoading(false);
+    }
+
+    const fallback = fallbackLocalLogin(role, { userId });
+    if (fallback) {
+      onAuthenticated(fallback);
+    } else {
+      setErrorMsg('Akun tidak ditemukan.');
     }
   };
 
@@ -83,16 +132,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           identifier: identifierInput,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error || 'Kredensial tidak ditemukan.');
-      } else {
+      if (res.ok) {
+        const data = await res.json();
         onAuthenticated(data as AuthSession);
+        return;
       }
     } catch {
-      setErrorMsg('Gagal menghubungi server.');
+      // Static hosting fallback (GitHub Pages)
     } finally {
       setIsLoading(false);
+    }
+
+    const fallback = fallbackLocalLogin(portalRole, {
+      identifier: identifierInput,
+    });
+    if (fallback) {
+      onAuthenticated(fallback);
+    } else {
+      setErrorMsg('Kredensial tidak ditemukan.');
     }
   };
 
@@ -111,16 +168,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           phone: regPhone,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error || 'Gagal mendaftar.');
-      } else {
+      if (res.ok) {
+        const data = await res.json();
         onAuthenticated(data as AuthSession);
+        return;
       }
     } catch {
-      setErrorMsg('Gagal menghubungi server.');
+      // Static hosting fallback (GitHub Pages)
     } finally {
       setIsLoading(false);
+    }
+
+    if (regName.trim() && regEmail.trim()) {
+      onAuthenticated({
+        token: `tok-cli-${Date.now()}`,
+        role: 'client',
+        userId: `cli-${Date.now()}`,
+        name: regName.trim(),
+        email: regEmail.trim().toLowerCase(),
+        subtitle: regCompany.trim() || 'Klien Perseorangan',
+      });
     }
   };
 
