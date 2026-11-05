@@ -114,6 +114,10 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const latestMsg = messages[messages.length - 1];
+    if (latestMsg && latestMsg.senderRole === 'lawyer' && latestMsg.referencedClauseId) {
+      setHighlightedClauseId(latestMsg.referencedClauseId);
+    }
   }, [messages.length, mobilePanel]);
 
   const handleSubmitChat = (e: React.FormEvent) => {
@@ -175,9 +179,10 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
   const quickPrompts =
     activeRole === 'client'
       ? [
-          'Apakah klausul denda ini dapat dibatalkan?',
-          'Mohon buatkan usulan revisi pasal ini.',
-          'Apa langkah jika pihak lawan wanprestasi?',
+          'Tolong rombak Pasal 2 agar denda dihapus',
+          'Rombak semua pasal berisiko tinggi agar aman',
+          'Tambahkan pasal Force Majeure & Sengketa',
+          'Apakah kontrak ini sudah aman ditandatangani?',
         ]
       : [
           'Catatan revisi pasal sudah saya perbarui di panel kanan.',

@@ -21,7 +21,13 @@ import {
   ConsultationSession,
   ClientAccount,
   AuthSession,
+  Lawyer,
 } from './src/types/legal.ts';
+import { GoogleGenAI, Type } from '@google/genai';
+import {
+  runLocalContextualLegalEngine,
+  AutoAdvocateResult,
+} from './src/utils/autoAdvocateEngine.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -466,6 +472,126 @@ async function startServer() {
       subtitle: newClient.company || 'Klien Perseorangan',
     };
     res.json(authSession);
+  });
+
+  // Server-Side Automatic Advocate Consultation & Contract Revision Endpoint
+  app.post('/api/advocate/auto-respond', async (req, res) => {
+    const params = req.body as {
+      clientMessage: string;
+      quotedClauseId?: string;
+      session: ConsultationSession;
+      lawyer: Lawyer;
+      document?: LegalDocument;
+      recentMessages: ChatMessage[];
+    };
+
+    if (!params?.clientMessage || !params?.session || !params?.lawyer) {
+      res.status(400).json({ error: 'Parameter konsultasi tidak lengkap.' });
+      return;
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      try {
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            },
+          },
+        });
+
+        const clausesSummary =
+          params.document?.clauses
+            .map(
+              (c) =>
+                `- ID: "${c.id}" | ${c.clauseNumber} (${c.title}) | Status: ${c.riskStatus}\n  Naskah: ${c.originalText}\n  Catatan: ${c.lawyerNote}\n  Usulan: ${c.proposedRevision}`
+            )
+            .join('\n') || 'Belum ada pasal kontrak.';
+
+        const promptText = `Anda adalah Advokat Indonesia berlisensi PERADI: ${params.lawyer.name} (${params.lawyer.niaPeradi}), Spesialis ${params.lawyer.specialty}.
+Klien: ${params.session.clientName} (${params.session.clientCompany || 'Klien'}).
+Perkara: ${params.session.title} (${params.session.caseNumber}).
+Pasal yang dikutip Klien (jika ada): ${params.quotedClauseId || 'Tidak ada'}.
+
+Daftar Pasal Kontrak Saat Ini (${params.document?.title || 'Dokumen'}):
+${clausesSummary}
+
+Pesan / Permintaan Terbaru dari Klien:
+"${params.clientMessage}"
+
+Tugas Anda:
+1. Jawab pesan Klien secara ringkas, jelas, dan profesional (maksimal 2-3 kalimat) sesuai hukum positif Indonesia (KUHPerdata, UU Ketenagakerjaan/PP 35/2021, UU PT, Hukum Pertanahan, Pidana, atau Waris).
+2. Jika Klien meminta merombak, mengubah, merevisi, menghapus denda, atau mengamankan pasal tertentu (atau semua pasal berisiko), ISI array "clauseUpdates" dengan "clauseId" yang tepat dari daftar di atas, ubah "riskStatus" menjadi "safe", tulis "replaceOriginalText" (bunyi pasal baru yang sudah dirombak), "proposedRevision" (rumusan pengganti), dan "lawyerNote" singkat.
+3. Jika Klien meminta menambahkan pasal baru (misal Force Majeure, Kerahasiaan, Penyelesaian Sengketa, dll), isi objek "newClause".`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: promptText,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                replyText: {
+                  type: Type.STRING,
+                  description: 'Balasan singkat dan jelas dari Advokat untuk Klien di ruang chat.',
+                },
+                referencedClauseId: {
+                  type: Type.STRING,
+                  description: 'ID pasal yang dirujuk atau dirombak (jika ada).',
+                },
+                referencedClauseLabel: {
+                  type: Type.STRING,
+                  description: 'Label pasal seperti "Pasal 2 — Judul Pasal" (jika ada).',
+                },
+                clauseUpdates: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      clauseId: { type: Type.STRING },
+                      riskStatus: { type: Type.STRING },
+                      lawyerNote: { type: Type.STRING },
+                      proposedRevision: { type: Type.STRING },
+                      replaceOriginalText: { type: Type.STRING },
+                    },
+                  },
+                },
+                updatedOpinionSummary: {
+                  type: Type.STRING,
+                  description: 'Ringkasan opini hukum baru jika terjadi perubahan kontrak.',
+                },
+              },
+            },
+          },
+        });
+
+        const rawJson = (response.text ?? '').trim();
+        if (rawJson) {
+          const parsed = JSON.parse(rawJson) as AutoAdvocateResult;
+          if (parsed && parsed.replyText) {
+            res.json({
+              replyText: parsed.replyText,
+              referencedClauseId: parsed.referencedClauseId || undefined,
+              referencedClauseLabel: parsed.referencedClauseLabel || undefined,
+              clauseUpdates: Array.isArray(parsed.clauseUpdates)
+                ? parsed.clauseUpdates
+                : [],
+              updatedOpinionSummary: parsed.updatedOpinionSummary || undefined,
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Fallback ke mesin hukum lokal:', err);
+      }
+    }
+
+    // Fallback to Contextual Legal & Contract Revision Engine
+    const localResult = runLocalContextualLegalEngine(params);
+    res.json(localResult);
   });
 
   if (process.env.NODE_ENV !== 'production') {

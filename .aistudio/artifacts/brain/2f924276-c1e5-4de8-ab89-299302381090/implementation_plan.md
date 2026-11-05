@@ -1,83 +1,91 @@
-# AdvokaID — Sinkronisasi Real-Time Lintas Tab & Pembukaan Konsultasi 1-Klik
+# AdvokaID — Mesin Advokat Otomatis (Respon Chat & Rombak Kontrak Real-Time)
 
-Pembaruan ini memastikan setiap konsultasi baru, pengiriman pesan chat, unggahan kontrak, dan revisi pasal tersinkronisasi **secara instan (real-time)** antara tab **Klien** dan tab **Advokat** baik di server lokal/preview maupun di **GitHub Pages (`github.io`)**, serta mengganti formulir panjang menjadi pembukaan ruang chat langsung **1-klik**.
+Pembaruan ini menghadirkan **Mesin Advokat Otomatis Pintar** yang membuat Advokat pendamping langsung merespons setiap pesan dan permintaan Klien secara otomatis—termasuk **merombak bunyi pasal kontrak, memperbarui catatan hukum, mengubah status risiko pasal (Risiko Tinggi / Perlu Revisi / Aman), menambahkan pasal baru jika diminta, serta memperbarui ringkasan Opini Hukum** secara *real-time*, sambil tetap mengizinkan balasan atau revisi manual dari tab Advokat kapan saja.
 
 ---
 
 ## User Review & Keputusan Utama
 
 > [!IMPORTANT]
-> Berdasarkan konfirmasi Anda pada tahap klarifikasi, berikut dua peningkatan utama yang akan diterapkan:
+> Berdasarkan pilihan yang Anda konfirmasi pada tahap klarifikasi:
 
-- **Keputusan 1 (Sinkronisasi Real-Time Antar Tab di Semua Lingkungan)**: Menggabungkan koneksi **WebSocket Server** dengan **`BroadcastChannel` API + `localStorage` Storage Event Listener** sehingga ketika Klien di Tab 1 memulai konsultasi atau mengirim pesan, halaman Dashboard/Ruang Konsultasi Advokat di Tab 2 langsung terperbarui seketika tanpa perlu *refresh* halaman—termasuk saat dibuka dari GitHub Pages.
-- **Keputusan 2 (Masuk Ruang Chat 1-Klik Tanpa Form Panjang)**: Menekan tombol **"Mulai Chat"** pada kartu Advokat langsung membuat/membuka ruang konsultasi aktif bersama Advokat tersebut dan mengarahkan Klien ke ruang chat seketika tanpa harus mengisi formulir pendaftaran perkara terlebih dahulu.
+- **Keputusan 1 (Otomatis Merombak Pasal, Catatan Hukum & Membalas Chat Sekaligus)**: Setiap kali Klien mengirim pesan di ruang chat (misalnya: *"Tolong rombak Pasal 2 agar denda 40% dihapus"*, *"Ubah jangka waktu bayar Pasal 3 jadi 30 hari"*, *"Tambahkan pasal kerahasiaan data"*, atau bertanya hukum), Advokat langsung membalas di chat **sekaligus memperbarui teks pasal/revisi di panel Tinjauan Kontrak sebelah kanan** secara otomatis.
+- **Keputusan 2 (Selalu Aktif Otomatis + Tetap Bisa Manual dari Tab Advokat)**: Fitur respon dan rombak otomatis selalu aktif setiap kali Klien mengirim pesan, dan seluruh hasilnya langsung tersinkronisasi ke tab Advokat maupun tab Klien (termasuk di GitHub Pages `github.io`). Jika Anda membuka tab Advokat, Anda juga tetap bisa mengetik balasan atau mengedit pasal secara manual.
 
 ---
 
 ## 1. Gambaran Umum & Konsep Inti
 
 - **Apa yang Dilakukan**:
-  1. Menghilangkan hambatan form manual saat Klien ingin berkonsultasi dengan Advokat pilihan.
-  2. Menyediakan jalur komunikasi *dual-engine* (*WebSocket* + *Cross-Tab BroadcastChannel & Storage Sync*) agar seluruh perubahan state (`sessions`, `messages`, `documents`, `clients`, dan `typingInfo`) selalu identik di semua tab browser secara *real-time*.
-- **Target Pengguna**: Klien yang ingin langsung berdiskusi dengan Advokat pilihannya di satu tab, dan Advokat yang memantau antrean perkara/chat masuk secara langsung di tab lain.
-- **Nilai Utama**: Pengalaman konsultasi hukum yang benar-benar instan, responsif, dan tetap berjalan *real-time* meskipun di-deploy ke hosting statis seperti GitHub Pages.
+  1. Ketika Klien mengirim pesan atau mengutip suatu pasal kontrak di ruang chat, indikator *"Advokat sedang mengetik..."* langsung menyala.
+  2. Sistem menganalisis isi permintaan Klien beserta seluruh daftar pasal kontrak yang sedang aktif pada sesi tersebut.
+  3. Dalam waktu singkat (~1,2 detik), Advokat:
+     - Mengirimkan balasan konsultasi hukum yang spesifik sesuai yurisdiksi hukum Indonesia (KUHPerdata, UU Ketenagakerjaan/PP 35/2021, UU PT, Hukum Pertanahan, Pidana/UU ITE, atau Waris).
+     - **Merombak langsung pasal terkait** di panel kanan (`originalText` / `proposedRevision`, `lawyerNote`, dan `riskStatus`) serta menyorot (*highlight*) pasal yang baru saja dirombak.
+     - **Menambahkan pasal baru** ke dokumen kontrak apabila Klien meminta penambahan pasal (contoh: *"Tolong tambahkan pasal Force Majeure / Kerahasiaan"*).
+     - **Memperbarui Ringkasan Opini Hukum** perkara jika terjadi perubahan substansi kontrak.
+- **Target Pengguna**: Klien yang ingin merasakan pengalaman konsultasi dan negosiasi/rombak kontrak interaktif tanpa harus berpindah tab, maupun pengguna yang menguji kolaborasi dua arah.
+- **Nilai Utama**: Simulasi dan asistensi hukum yang hidup—setiap instruksi Klien di chat benar-benar mengubah isi dokumen kontrak di meja tinjauan secara *real-time*.
 
 ---
 
 ## 2. Pengalaman Pengguna & Desain Visual
 
-- **Alur Pengguna Baru (1-Klik Mulai Chat)**:
-  1. **Klien** memilih Advokat di Direktori lalu menekan tombol **"Mulai Chat"**.
-  2. Jika belum ada sesi perkara antara Klien tersebut dan Advokat yang dipilih, sistem otomatis membuka sesi konsultasi baru secara instan dan langsung menampilkan **Ruang Konsultasi (50:50 Chat & Kontrak)** tanpa pop-up form panjang.
-  3. Di **Tab Advokat** yang sedang login dengan akun Advokat tersebut, perkara baru dan pesan dari Klien langsung muncul secara *real-time* di daftar antrean maupun di ruang chat.
-  4. Jika Klien ingin melampirkan kontrak, Klien cukup menekan tombol **"Unggah Kontrak"** langsung di panel kanan ruang konsultasi.
-- **Identitas Visual & Anti-Slop Swiss Editorial**:
-  - **Palet Warna (60-30-10)**: Kanvas netral terang `#F8FAFC` (60%), permukaan kartu putih `#FFFFFF` dengan garis batas tegas `1px solid #E2E8F0` (30%), serta aksen utama `#0F172A` (Slate-900) dan `#B45309` (Amber-700) (10%).
-  - **Tipografi & Hierarki**: Kombinasi *serif* editorial untuk judul utama, *Plus Jakarta Sans* untuk keterbacaan antarmuka, dan *JetBrains Mono* (`tabular-nums`) untuk nomor registrasi perkara, NIA PERADI, dan metrik pasal.
-  - **Disiplin Anti-Slop**: Tanpa *pill badge* berlebihan pada metadata statis, tanpa garis aksen tebal di sisi kiri kartu, tanpa *glow/blur* dekoratif, dan tata letak 2 kolom seimbang (`lg:col-span-6` + `lg:col-span-6`).
+- **Alur Interaksi Rombak & Konsultasi Otomatis**:
+  1. **Klien Mengirim Instruksi**: Klien mengetik bebas di chat (misal: *"Pak Rendra, tolong rombak Pasal 2 supaya tidak ada denda 40% dan ubah jadi evaluasi bersama"* atau klik tombol cepat).
+  2. **Status Mengetik Real-Time**: Muncul indikator bahwa Advokat sedang menelaah dan menyusun revisi pasal.
+  3. **Eksekusi Rombak Kontrak + Balasan Chat**:
+     - Panel kanan otomatis memperbarui kartu pasal yang dimaksud: menampilkan **Usulan Perbaikan Pasal** yang baru, memperbarui **Catatan Hukum Advokat**, dan mengubah status pasal menjadi **Aman** atau **Perlu Revisi** sesuai hasil rombakan.
+     - Pesan balasan Advokat muncul di ruang chat lengkap dengan tombol **Rujukan Pasal** yang bila diklik langsung menggulir (*scroll* & *highlight*) ke pasal yang baru dirombak di panel kanan.
+- **Tombol Instruksi Cepat (Quick Prompts) Lebih Kaya**:
+  - Menyediakan pintasan permintaan rombak kontrak bagi Klien seperti:
+    - *"Tolong rombak pasal berisiko tinggi agar aman bagi kami"*
+    - *"Hapus sanksi denda sepihak pada pasal ini"*
+    - *"Tambahkan pasal Force Majeure & Penyelesaian Sengketa"*
+    - *"Berikan pendapat hukum atas keseluruhan kontrak ini"*
+- **Identitas Visual**: Tetap konsisten dengan gaya **Anti-Slop Swiss Editorial** (`1px solid` *hairline border*, tata letak simetris 50:50 antara Ruang Chat dan Meja Tinjauan Kontrak).
 
 ---
 
 ## 3. Keputusan Produk & Pertimbangan Teknis
 
-- **Keputusan 1: Arsitektur Sinkronisasi Hibrida (WebSocket + BroadcastChannel + LocalStorage)**
-  - *Pendekatan*: Setiap aksi (`session:create`, `chat:send`, `chat:typing`, `contract:annotate_clause`, `contract:upload_document`, `session:update_opinion`, dan registrasi klien) dikirim ke WebSocket server **sekaligus** disimpan ke penyimpanan lokal bersama dan disiarkan melalui `BroadcastChannel('advokaid_realtime_channel')` serta event `storage`.
-  - *Alasan*: Di GitHub Pages tidak ada server Node.js/WebSocket yang berjalan di latar belakang. Dengan *engine* hibrida ini, komunikasi antar-tab Klien dan Advokat tetap berjalan 100% *real-time* di GitHub Pages maupun di server lokal.
-- **Keputusan 2: Pembuatan Sesi Instan 1-Klik (`startInstantConsultation`)**
-  - *Pendekatan*: Mengganti modal form panjang saat klik "Mulai Chat" dengan pembuatan sesi otomatis yang langsung mengarahkan pengguna ke `ConsultationRoom` dan menyiarkan sesi baru tersebut ke tab Advokat.
-  - *Alasan*: Pengguna tidak perlu mengetik manual judul dan kronologi panjang hanya untuk memulai percakapan.
+- **Keputusan 1: Mesin Hibrida (Server-Side `@google/genai` + Mesin Hukum Kontekstual Client-Side)**
+  - *Pendekatan*:
+    1. Pada lingkungan server (`server.ts`), menyediakan endpoint `/api/advocate/auto-respond` menggunakan SDK `@google/genai` (`gemini-3.8-flash` dengan `responseSchema` terstruktur) yang mengembalikan JSON berisi balasan chat Advokat, daftar pasal yang dirombak (`clauseUpdates`), pasal baru (`newClause`), dan pembaruan opini hukum (`updatedOpinion`).
+    2. Dilengkapi **Mesin Analisis & Rombak Kontrak Kontekstual Pintar** di sisi aplikasi yang memahami instruksi Bahasa Indonesia (deteksi nomor pasal, kata kunci *rombak/ubah/hapus/ganti/denda/hari/persen/tambah pasal/force majeure/kerahasiaan/pesangon/kuasa menjual/waris/pidana*) sehingga **meskipun dibuka di GitHub Pages (`github.io`) tanpa server backend, fitur rombak pasal & balasan otomatis tetap berjalan 100% cerdas dan instan!**
+- **Keputusan 2: Sinkronisasi Penuh ke Tab Advokat & Video Remotion**
+  - *Pendekatan*: Semua hasil rombakan pasal dan balasan otomatis Advokat disimpan ke state bersama (`BroadcastChannel` + `localStorage` + WebSocket) sehingga tab Advokat dan **Video Ringkasan (Remotion)** langsung menampilkan jumlah pasal aman/revisi terbaru secara *real-time*.
 
 ---
 
 ## 4. Arsitektur Teknis & Strategi Data
 
-### Diagram Arsitektur Sinkronisasi Real-Time
-
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    TAB 1: SESI KLIEN (sessionStorage)                   │
-│  [Klik "Mulai Chat" / Kirim Pesan / Unggah Kontrak / Kutip Pasal]       │
-└───────────────────┬─────────────────────────────────┬───────────────────┘
-                    │                                 │
-      (Jalur Server Lokal / Preview)     (Jalur Instan Lintas Tab & GitHub Pages)
-                    ▼                                 ▼
-┌───────────────────────────────────┐ ┌───────────────────────────────────┐
-│   Express + WebSocket (/ws:3000)  │ │  BroadcastChannel + localStorage  │
-│  Broadcast event ke semua klien   │ │  ('advokaid_realtime_sync_v1')    │
-└───────────────────┬───────────────┘ └───────────────┬───────────────────┘
-                    │                                 │
-                    └────────────────┬────────────────┘
-                                     ▼
+│                        KLIEN MENGIRIM PESAN CHAT                        │
+│   Contoh: "Tolong rombak Pasal 2 agar denda 40% dihapus & jadi aman"    │
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │
+                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                   TAB 2: SESI ADVOKAT (sessionStorage)                  │
-│  [Reconcile State Idempoten -> Antrean & Ruang Chat Update Real-Time]   │
+│             MESIN ADVOKAT OTOMATIS (HYBRID AI + LEGAL ENGINE)           │
+│  1. Nyalakan indikator "Advokat sedang mengetik..."                     │
+│  2. Panggil /api/advocate/auto-respond (Gemini 3.8 Flash Structured)    │
+│     ATAU Kontekstual Legal Parser Engine (saat di GitHub Pages)         │
+└───────────────┬───────────────────────────────────┬─────────────────────┘
+                │                                   │
+                ▼                                   ▼
+┌───────────────────────────────────┐ ┌───────────────────────────────────┐
+│   PANEL KIRI: RUANG CHAT HUKUM    │ │ PANEL KANAN: TINJAUAN KONTRAK     │
+│ • Balasan Advokat sesuai keahlian │ │ • Rombak bunyi Usulan Perbaikan   │
+│ • Tautan Rujukan Pasal otomatis   │ │ • Update Catatan Hukum & Status   │
+│ • Update Ringkasan Opini Hukum    │ │ • Tambah Pasal Baru (jika diminta)│
+└───────────────┬───────────────────┘ └─────────────┬─────────────────────┘
+                │                                   │
+                └─────────────────┬─────────────────┘
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│        SINKRONISASI REAL-TIME (WebSocket + BroadcastChannel)            │
+│   Tersinkronisasi otomatis ke Tab Advokat & Video Ringkasan Remotion    │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
-
-### Pemetaan Interaksi Komponen & State
-- **Direktori Advokat (`Mulai Chat` 1-Klik)**:
-  - Memeriksa apakah Klien sudah memiliki sesi dengan Advokat tersebut; jika belum, langsung membuat objek `ConsultationSession` baru beserta pesan pembuka otomatis, menyimpannya ke state bersama, menyiarkannya ke WebSocket & `BroadcastChannel`, dan langsung membuka tampilan `ConsultationRoom`.
-- **Ruang Konsultasi (`ConsultationRoom`) & Tinjauan Kontrak (`ContractReviewerPanel`)**:
-  - Pengiriman pesan chat, indikator sedang mengetik (*typing*), unggahan dokumen kontrak baru, revisi/anotasi pasal, dan pembaruan opini hukum langsung memicu sinkronisasi dua arah yang idempoten (mencegah duplikasi ID pesan/dokumen) sehingga tab lawan bicara langsung memperbarui layar dalam hitungan milidetik.
-- **Pembaruan Paket Unduhan (`.RAR` & `.ZIP`)**:
-  - Setelah kode selesai diperbarui dan dikompilasi ke `dist/`, paket `AdvokaID-SourceCode.rar` dan `AdvokaID-SourceCode.zip` ikut diperbarui otomatis.

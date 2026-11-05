@@ -12,7 +12,6 @@ import {
   BookOpen,
   LogOut,
   UserCheck,
-  Download,
   Film,
 } from 'lucide-react';
 import {
@@ -51,6 +50,7 @@ import {
   savePersistedSharedState,
   mergeServerStates,
 } from './utils/realtimeSync';
+import { generateAdvocateAutoResponse } from './utils/autoAdvocateEngine';
 
 type ActiveSection = 'directory' | 'consultation' | 'contracts' | 'guide';
 
@@ -362,6 +362,218 @@ export default function App() {
     (d) => d.sessionId === currentSession?.id
   );
 
+  // Automatic Advocate Response & Contract Revision Trigger
+  const triggerAdvocateAutoReply = (params: {
+    sessionId: string;
+    clientMessage: string;
+    quotedClauseId?: string;
+  }) => {
+    const targetSession = stateRef.current.sessions.find(
+      (s) => s.id === params.sessionId
+    );
+    if (!targetSession) return;
+
+    const assignedLawyer =
+      stateRef.current.lawyers.find((l) => l.id === targetSession.lawyerId) ||
+      stateRef.current.lawyers[0];
+    if (!assignedLawyer) return;
+
+    // 1. Show "Advokat sedang mengetik..." immediately
+    const typingStart = {
+      sessionId: targetSession.id,
+      senderRole: 'lawyer' as const,
+      senderName: assignedLawyer.name,
+      isTyping: true,
+    };
+    setTypingInfo(typingStart);
+    if (bcRef.current) {
+      bcRef.current.postMessage({
+        type: 'chat:typing_update',
+        payload: typingStart,
+        senderTabId: TAB_INSTANCE_ID,
+      });
+    }
+
+    setTimeout(async () => {
+      const latestSession =
+        stateRef.current.sessions.find((s) => s.id === params.sessionId) ||
+        targetSession;
+      const sessionDocs = stateRef.current.documents.filter(
+        (d) => d.sessionId === params.sessionId
+      );
+      const primaryDoc = sessionDocs[0];
+      const recentMsgs = stateRef.current.messages
+        .filter((m) => m.sessionId === params.sessionId)
+        .slice(-8);
+
+      const autoResult = await generateAdvocateAutoResponse({
+        clientMessage: params.clientMessage,
+        quotedClauseId: params.quotedClauseId,
+        session: latestSession,
+        lawyer: assignedLawyer,
+        document: primaryDoc,
+        recentMessages: recentMsgs,
+      });
+
+      const replyTime = getNowWIB();
+      let updatedClauseId = autoResult.referencedClauseId;
+      let updatedClauseLabel = autoResult.referencedClauseLabel;
+
+      // 2. Apply automatic contract clause revisions or newly added clauses
+      let nextDocuments = stateRef.current.documents;
+      if (primaryDoc) {
+        const updateMap = new Map(
+          (autoResult.clauseUpdates || []).map((u) => [u.clauseId, u])
+        );
+
+        nextDocuments = stateRef.current.documents.map((doc) => {
+          if (doc.id !== primaryDoc.id) return doc;
+
+          let nextClauses = doc.clauses.map((c) => {
+            const upd = updateMap.get(c.id);
+            if (!upd) return c;
+            if (!updatedClauseId) {
+              updatedClauseId = c.id;
+              updatedClauseLabel = `${c.clauseNumber} — ${c.title}`;
+            }
+            const validRisk: ClauseRiskStatus =
+              upd.riskStatus === 'safe' ||
+              upd.riskStatus === 'warning' ||
+              upd.riskStatus === 'critical'
+                ? upd.riskStatus
+                : 'safe';
+
+            const updatedClause: ContractClause = {
+              ...c,
+              originalText:
+                upd.replaceOriginalText && upd.replaceOriginalText.trim().length > 5
+                  ? upd.replaceOriginalText.trim()
+                  : c.originalText,
+              riskStatus: validRisk,
+              lawyerNote: upd.lawyerNote || c.lawyerNote,
+              proposedRevision: upd.proposedRevision || c.proposedRevision,
+              lastUpdatedBy: assignedLawyer.name,
+              lastUpdatedAt: replyTime,
+            };
+
+            emitWsEvent({
+              type: 'contract:annotate_clause',
+              payload: {
+                documentId: doc.id,
+                sessionId: latestSession.id,
+                clauseId: c.id,
+                riskStatus: updatedClause.riskStatus,
+                lawyerNote: updatedClause.lawyerNote,
+                proposedRevision: updatedClause.proposedRevision,
+                updatedBy: assignedLawyer.name,
+                postToChat: false,
+              },
+            });
+
+            return updatedClause;
+          });
+
+          if (autoResult.newClause) {
+            const addedId = `${doc.id}-cl-${nextClauses.length + 1}-${Date.now()}`;
+            const createdClause: ContractClause = {
+              id: addedId,
+              clauseNumber:
+                autoResult.newClause.clauseNumber ||
+                `Pasal ${nextClauses.length + 1}`,
+              title: autoResult.newClause.title,
+              originalText: autoResult.newClause.originalText,
+              riskStatus: autoResult.newClause.riskStatus || 'safe',
+              lawyerNote: autoResult.newClause.lawyerNote,
+              proposedRevision: autoResult.newClause.proposedRevision,
+              lastUpdatedBy: assignedLawyer.name,
+              lastUpdatedAt: replyTime,
+            };
+            nextClauses = [...nextClauses, createdClause];
+            updatedClauseId = addedId;
+            updatedClauseLabel = `${createdClause.clauseNumber} — ${createdClause.title}`;
+          }
+
+          const hasRemainingRisk = nextClauses.some(
+            (c) => c.riskStatus !== 'safe'
+          );
+
+          return {
+            ...doc,
+            overallStatus: hasRemainingRisk
+              ? ('Sedang Ditinjau' as const)
+              : ('Selesai Ditinjau' as const),
+            clauses: nextClauses,
+          };
+        });
+      }
+
+      // 3. Apply updated Legal Opinion Summary if present
+      const nextSessions = stateRef.current.sessions.map((s) => {
+        if (s.id !== latestSession.id) return s;
+        return {
+          ...s,
+          legalOpinionSummary:
+            autoResult.updatedOpinionSummary || s.legalOpinionSummary,
+          recommendedNextSteps:
+            autoResult.updatedNextSteps || s.recommendedNextSteps,
+          status: autoResult.updatedSessionStatus || s.status,
+          unreadClientCount: activeRole === 'lawyer' ? s.unreadClientCount + 1 : 0,
+          unreadLawyerCount: 0,
+        };
+      });
+
+      // 4. Append Advocate's automatic reply message
+      const replyId = `msg-auto-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 6)}`;
+      const lawyerReplyMsg: ChatMessage = {
+        id: replyId,
+        sessionId: latestSession.id,
+        senderRole: 'lawyer',
+        senderName: assignedLawyer.name,
+        content: autoResult.replyText,
+        timestamp: replyTime,
+        referencedClauseId: updatedClauseId,
+        referencedClauseLabel: updatedClauseLabel,
+      };
+
+      applyAndSyncState({
+        documents: nextDocuments,
+        sessions: nextSessions,
+        messages: [...stateRef.current.messages, lawyerReplyMsg],
+      });
+
+      emitWsEvent({
+        type: 'chat:send',
+        payload: {
+          id: replyId,
+          sessionId: latestSession.id,
+          senderRole: 'lawyer',
+          senderName: assignedLawyer.name,
+          content: autoResult.replyText,
+          referencedClauseId: updatedClauseId,
+          referencedClauseLabel: updatedClauseLabel,
+        },
+      });
+
+      // 5. Clear typing indicator
+      const typingStop = {
+        sessionId: latestSession.id,
+        senderRole: 'lawyer' as const,
+        senderName: assignedLawyer.name,
+        isTyping: false,
+      };
+      setTypingInfo(typingStop);
+      if (bcRef.current) {
+        bcRef.current.postMessage({
+          type: 'chat:typing_update',
+          payload: typingStop,
+          senderTabId: TAB_INSTANCE_ID,
+        });
+      }
+    }, 950);
+  };
+
   // Handlers for Real-Time Chat & Contract Review (Dual WebSocket + Cross-Tab BroadcastChannel Sync)
   const handleSendMessage = (payload: {
     sessionId: string;
@@ -399,6 +611,15 @@ export default function App() {
       type: 'chat:send',
       payload: { id, ...payload },
     });
+
+    // When a Client sends any message/request, automatically trigger Advocate response & contract revision!
+    if (payload.senderRole === 'client') {
+      triggerAdvocateAutoReply({
+        sessionId: payload.sessionId,
+        clientMessage: payload.content,
+        quotedClauseId: payload.referencedClauseId,
+      });
+    }
   };
 
   const handleTypingChange = (isTyping: boolean) => {
@@ -493,6 +714,17 @@ export default function App() {
       type: 'contract:annotate_clause',
       payload,
     });
+
+    // If the Client submits a note/request on a clause in the right panel, the Advocate automatically responds & revises it!
+    if (activeRole === 'client') {
+      triggerAdvocateAutoReply({
+        sessionId: payload.sessionId,
+        clientMessage: `Tolong rombak dan sesuaikan ${
+          targetClauseLabel || 'pasal ini'
+        }: ${payload.lawyerNote || payload.proposedRevision || 'agar aman bagi kami'}`,
+        quotedClauseId: payload.clauseId,
+      });
+    }
   };
 
   const handleUploadDocument = (payload: {
@@ -530,7 +762,7 @@ export default function App() {
     };
 
     applyAndSyncState({
-      documents: [...stateRef.current.documents, newDoc],
+      documents: [newDoc, ...stateRef.current.documents],
       messages: [...stateRef.current.messages, uploadMsg],
     });
 
@@ -538,6 +770,13 @@ export default function App() {
       type: 'contract:upload_document',
       payload,
     });
+
+    if (payload.uploadedBy === 'client') {
+      triggerAdvocateAutoReply({
+        sessionId: payload.sessionId,
+        clientMessage: `Mohon tinjau dokumen kontrak baru yang saya unggah (${payload.title}) dan rombak pasal yang berisiko.`,
+      });
+    }
   };
 
   const handleUpdateOpinion = (payload: {
@@ -672,6 +911,12 @@ export default function App() {
     setActiveSection('consultation');
     setInspectingLawyer(null);
     setIntakeModalLawyer(null);
+
+    // Automatically trigger initial greeting & contract inspection from the assigned Advocate
+    triggerAdvocateAutoReply({
+      sessionId: newSessionId,
+      clientMessage: initialMessageText,
+    });
   };
 
   const openConsultationIntake = (lawyer: Lawyer) => {
@@ -1617,23 +1862,10 @@ export default function App() {
               — Platform Konsultasi Hukum &amp; Telaah Kontrak Real-Time Indonesia.
             </span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="./AdvokaID-SourceCode.rar"
-              download="AdvokaID-SourceCode.rar"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span>Unduh Kodingan + README (.RAR)</span>
-            </a>
-            <a
-              href="./AdvokaID-SourceCode.zip"
-              download="AdvokaID-SourceCode.zip"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800 font-semibold border border-slate-300 hover:bg-slate-200 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5 text-slate-700" />
-              <span>.ZIP</span>
-            </a>
+          <div className="flex items-center gap-3">
+            <span>Rahasia Jabatan Advokat Pasal 19 UU No. 18/2003</span>
+            <span aria-hidden="true">·</span>
+            <span>Terverifikasi PERADI</span>
           </div>
         </div>
       </footer>
