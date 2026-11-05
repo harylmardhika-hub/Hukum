@@ -1,131 +1,83 @@
-# AdvokaID — Platform Konsultasi Hukum & Tinjauan Kontrak Real-Time
+# AdvokaID — Sinkronisasi Real-Time Lintas Tab & Pembukaan Konsultasi 1-Klik
 
-Platform konsultasi hukum digital yang menghubungkan masyarakat dan pelaku usaha di Indonesia langsung dengan advokat berlisensi (PERADI) melalui ruang diskusi real-time, dilengkapi fitur berbagi dokumen dan peninjauan pasal kontrak secara kolaboratif.
+Pembaruan ini memastikan setiap konsultasi baru, pengiriman pesan chat, unggahan kontrak, dan revisi pasal tersinkronisasi **secara instan (real-time)** antara tab **Klien** dan tab **Advokat** baik di server lokal/preview maupun di **GitHub Pages (`github.io`)**, serta mengganti formulir panjang menjadi pembukaan ruang chat langsung **1-klik**.
 
-## User Review & Critical Decisions
+---
+
+## User Review & Keputusan Utama
 
 > [!IMPORTANT]
-> Berikut adalah keputusan utama yang telah dikonfirmasi dari jawaban Anda serta arsitektur yang direkomendasikan sebelum pembangunan aplikasi dimulai:
+> Berdasarkan konfirmasi Anda pada tahap klarifikasi, berikut dua peningkatan utama yang akan diterapkan:
 
-- **Keputusan Terkonfirmasi 1 — Simulasi Dua Peran (Klien & Dashboard Pengacara)**: Aplikasi menyediakan pengalih peran instan (*Role Switcher*) di area toolbar ruang kerja sehingga pengguna dapat merasakan alur lengkap sebagai **Klien** (mencari advokat, memulai konsultasi, mengunggah draf kontrak) maupun sebagai **Advokat/Pengacara** (menerima antrean kasus, membalas chat secara langsung, dan memberikan anotasi revisi pasal kontrak).
-- **Keputusan Terkonfirmasi 2 — Berbagi Dokumen & Peninjauan Kontrak Hukum**: Setiap ruang konsultasi memiliki panel kolaborasi dokumen berdampingan dengan chat. Klien dapat melampirkan dokumen kontrak (mis. Perjanjian Kerja Sama, PKWT, Akta Jual Beli), dan Pengacara dapat menandai pasal berisiko, memberi catatan hukum, serta mengubah status klausul (*Aman*, *Perlu Revisi*, *Berisiko Tinggi*) secara real-time.
-- **Keputusan Terkonfirmasi 3 — Cakupan Spesialisasi Hukum Indonesia Lengkap**: Direktori mencakup 5 bidang utama hukum Indonesia: **Hukum Perdata**, **Hukum Pidana**, **Hukum Bisnis & Korporasi**, **Hukum Keluarga & Waris**, serta **Hukum Ketenagakerjaan (PHI)** lengkap dengan nomor izin advokat (NIA PERADI), pengalaman, dan tarif transparan.
-
----
-
-## 1. Overview & Core Concept
-
-- **Apa yang Dilakukan Aplikasi**: Menyediakan ekosistem bantuan hukum terpadu tempat klien memilih pengacara berdasarkan bidang perkara, berdiskusi secara real-time melalui koneksi WebSocket aktif, dan meninjau dokumen hukum pasal demi pasal tanpa harus berpindah aplikasi.
-- **Target Pengguna / Persona**:
-  - **Klien (Individu & UMKM/Perusahaan)**: Membutuhkan kepastian hukum cepat, peninjauan surat perjanjian, atau pendampingan perkara perdata/pidana/ketenagakerjaan.
-  - **Advokat / Konsultan Hukum**: Membutuhkan meja kerja digital (*command center*) yang rapi untuk mengelola antrean konsultasi klien, meninjau klausul kontrak secara terstruktur, dan menerbitkan ringkasan opini hukum (*Legal Opinion*).
-- **Nilai Utama (Key Value)**: Menghilangkan hambatan birokrasi konsultasi hukum tradisional dengan transparansi keahlian advokat, komunikasi instan tersinkronisasi, dan telaah dokumen hukum yang presisi dalam satu layar.
+- **Keputusan 1 (Sinkronisasi Real-Time Antar Tab di Semua Lingkungan)**: Menggabungkan koneksi **WebSocket Server** dengan **`BroadcastChannel` API + `localStorage` Storage Event Listener** sehingga ketika Klien di Tab 1 memulai konsultasi atau mengirim pesan, halaman Dashboard/Ruang Konsultasi Advokat di Tab 2 langsung terperbarui seketika tanpa perlu *refresh* halaman—termasuk saat dibuka dari GitHub Pages.
+- **Keputusan 2 (Masuk Ruang Chat 1-Klik Tanpa Form Panjang)**: Menekan tombol **"Mulai Chat"** pada kartu Advokat langsung membuat/membuka ruang konsultasi aktif bersama Advokat tersebut dan mengarahkan Klien ke ruang chat seketika tanpa harus mengisi formulir pendaftaran perkara terlebih dahulu.
 
 ---
 
-## 2. User Experience & Visual Design
+## 1. Gambaran Umum & Konsep Inti
 
-### Alur Pengguna Utama (Key User Flows)
-
-1. **Eksplorasi & Pemilihan Advokat (Sisi Klien)**:
-   - Pengguna melihat direktori advokat terverifikasi, memfilter berdasarkan 5 bidang hukum Indonesia, ketersediaan, atau mencari kata kunci kasus (mis. *"Sengketa tanah waris"*, *"Review kontrak vendor"*, *"PHK sepihak"*).
-   - Membuka profil mendalam advokat (latar belakang pendidikan, yurisdiksi pengadilan, NIA PERADI, ulasan kasus) dan menekan **"Mulai Konsultasi"** untuk masuk ke ruang sesi.
-2. **Ruang Konsultasi Real-Time & Peninjauan Kontrak (Layar Terbagi)**:
-   - **Panel Kiri/Tengah (Chat Hukum Real-Time)**: Pertukaran pesan langsung dengan indikator kehadiran (*online/typing*), referensi cepat ke pasal dokumen yang sedang dibahas, dan pengiriman lampiran berkas.
-   - **Panel Kanan (Meja Tinjauan Kontrak & Dokumen)**: Menampilkan isi dokumen per pasal/klausul. Klien dan Pengacara dapat mengklik pasal tertentu untuk melihat atau menambahkan catatan hukum (*Legal Annotation*), usulan redaksi pengganti (*Redlining*), dan status risiko klausul.
-3. **Meja Kerja Advokat (Dashboard Pengacara)**:
-   - Saat beralih ke mode **Dashboard Pengacara**, tampilan berubah menjadi meja kerja profesional yang memuat daftar sesi konsultasi aktif, antrean dokumen kontrak yang menunggu ditinjau, editor anotasi klausul, serta formulir penerbitan kesimpulan/rekomendasi hukum akhir.
-
-### Identitas Visual & Tema
-
-- **Aesthetic Direction**: *Institutional Legal Authority & Modern Workspace* — memadukan kewibawaan firma hukum korporat dengan kejelasan aplikasi produktivitas modern. Bersih, terstruktur, tanpa ornamen berlebihan.
-- **Palet Warna & Atmosfer (60-30-10 Rule)**:
-  - **60% Kanvas Netral Dominan**: Putih bersih (`#FFFFFF`) dan abu-abu batu tulis sangat lembut (`#F8FAFC`) untuk menjaga keterbacaan dokumen kontrak panjang.
-  - **30% Permukaan Struktural**: Slate gelap (`#0F172A`) untuk sidebar navigasi dan struktur ruang kerja, dengan garis batas rambut (`#E2E8F0`) untuk memisahkan panel tanpa kartu bertumpuk (*single-elevation depth*).
-  - **10% Aksen Fokus**: *Warm Legal Amber / Bronze* (`#B45309` / `#D97706`) untuk aksi utama dan penanda fokus, dipadukan warna semantik tegas + label teks untuk status klausul kontrak: Hijau Zamrud (`#15803D` - *Klausul Aman*), Amber (`#B45309` - *Perlu Revisi*), dan Merah Kirmizi (`#B91C1C` - *Risiko Hukum Tinggi*).
-- **Tipografi & Hierarki (2+1 Font Rule)**:
-  - **Display & Judul Editorial**: `Fraunces` atau `Playfair Display` untuk judul bagian utama dan identitas brand guna memancarkan kredibilitas institusi hukum.
-  - **Antarmuka & Teks Kontrak**: `Plus Jakarta Sans` untuk keterbacaan tinggi pada ruang chat, daftar advokat, dan naskah pasal perjanjian.
-  - **Data Numerik & Nomor Perkara**: `JetBrains Mono` (`tabular-nums`) khusus untuk nomor registrasi perkara, NIA PERADI, cap waktu (*timestamp*), dan rincian biaya konsultasi.
-- **Disiplin Anti-Slop & Zero-Pill Metadata**:
-  - Informasi metadata advokat (spesialisasi, pengalaman, yurisdiksi, nomor izin) ditampilkan sebagai teks bersih dengan pemisah tipografis (`Hukum Bisnis · 12 Tahun Pengalaman · NIA. 14.02891`), tanpa tumpukan lencana kapsul warna-warni.
-  - Navigasi atas mematuhi kontrak 3-zona satu baris: Nama Brand di kiri, tautan navigasi teks di tengah, dan satu tombol aksi utama di kanan.
+- **Apa yang Dilakukan**:
+  1. Menghilangkan hambatan form manual saat Klien ingin berkonsultasi dengan Advokat pilihan.
+  2. Menyediakan jalur komunikasi *dual-engine* (*WebSocket* + *Cross-Tab BroadcastChannel & Storage Sync*) agar seluruh perubahan state (`sessions`, `messages`, `documents`, `clients`, dan `typingInfo`) selalu identik di semua tab browser secara *real-time*.
+- **Target Pengguna**: Klien yang ingin langsung berdiskusi dengan Advokat pilihannya di satu tab, dan Advokat yang memantau antrean perkara/chat masuk secara langsung di tab lain.
+- **Nilai Utama**: Pengalaman konsultasi hukum yang benar-benar instan, responsif, dan tetap berjalan *real-time* meskipun di-deploy ke hosting statis seperti GitHub Pages.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
+## 2. Pengalaman Pengguna & Desain Visual
 
-- **Keputusan 1: Infrastruktur Komunikasi Real-Time Sesungguhnya (WebSocket Server)**
-  - *Pendekatan Terpilih*: Menggunakan server Express + WebSocket (`ws`) pada port yang sama (Port 3000) sebagai *single source of truth* untuk pesan chat, status ketikan (*typing*), unggahan dokumen kontrak, dan anotasi klausul.
-  - *Mengapa*: Memastikan perubahan yang dilakukan pada mode Pengacara (misalnya menandai Pasal 4 sebagai *Berisiko Tinggi* atau mengirim pesan advis hukum) langsung muncul seketika di layar Klien (termasuk jika dibuka di dua tab browser berbeda).
-  - *Alternatif yang Ditolak*: Menyimpan state hanya di memori lokal browser tanpa sinkronisasi server, karena tidak mencerminkan arsitektur aplikasi kolaborasi real-time yang sesungguhnya.
-- **Keputusan 2: Peninjauan Kontrak Berbasis Klausul Terstruktur (Structured Clause Redlining)**
-  - *Pendekatan Terpilih*: Dokumen kontrak direpresentasikan sebagai daftar pasal/klausul terstruktur yang dapat diklik, dikomentari, dan diajukan revisi redaksinya (*original text* vs *proposed legal revision*) serta ditautkan langsung ke gelembung chat.
-  - *Mengapa*: Jauh lebih fungsional dan mudah ditindaklanjuti oleh klien awam maupun pengacara dibandingkan sekadar menampilkan lampiran file statis yang tidak bisa dianotasi di dalam aplikasi.
+- **Alur Pengguna Baru (1-Klik Mulai Chat)**:
+  1. **Klien** memilih Advokat di Direktori lalu menekan tombol **"Mulai Chat"**.
+  2. Jika belum ada sesi perkara antara Klien tersebut dan Advokat yang dipilih, sistem otomatis membuka sesi konsultasi baru secara instan dan langsung menampilkan **Ruang Konsultasi (50:50 Chat & Kontrak)** tanpa pop-up form panjang.
+  3. Di **Tab Advokat** yang sedang login dengan akun Advokat tersebut, perkara baru dan pesan dari Klien langsung muncul secara *real-time* di daftar antrean maupun di ruang chat.
+  4. Jika Klien ingin melampirkan kontrak, Klien cukup menekan tombol **"Unggah Kontrak"** langsung di panel kanan ruang konsultasi.
+- **Identitas Visual & Anti-Slop Swiss Editorial**:
+  - **Palet Warna (60-30-10)**: Kanvas netral terang `#F8FAFC` (60%), permukaan kartu putih `#FFFFFF` dengan garis batas tegas `1px solid #E2E8F0` (30%), serta aksen utama `#0F172A` (Slate-900) dan `#B45309` (Amber-700) (10%).
+  - **Tipografi & Hierarki**: Kombinasi *serif* editorial untuk judul utama, *Plus Jakarta Sans* untuk keterbacaan antarmuka, dan *JetBrains Mono* (`tabular-nums`) untuk nomor registrasi perkara, NIA PERADI, dan metrik pasal.
+  - **Disiplin Anti-Slop**: Tanpa *pill badge* berlebihan pada metadata statis, tanpa garis aksen tebal di sisi kiri kartu, tanpa *glow/blur* dekoratif, dan tata letak 2 kolom seimbang (`lg:col-span-6` + `lg:col-span-6`).
 
 ---
 
-## 4. Technical Architecture & Data Strategy
+## 3. Keputusan Produk & Pertimbangan Teknis
 
-### Diagram Arsitektur & Hirarki Komponen
+- **Keputusan 1: Arsitektur Sinkronisasi Hibrida (WebSocket + BroadcastChannel + LocalStorage)**
+  - *Pendekatan*: Setiap aksi (`session:create`, `chat:send`, `chat:typing`, `contract:annotate_clause`, `contract:upload_document`, `session:update_opinion`, dan registrasi klien) dikirim ke WebSocket server **sekaligus** disimpan ke penyimpanan lokal bersama dan disiarkan melalui `BroadcastChannel('advokaid_realtime_channel')` serta event `storage`.
+  - *Alasan*: Di GitHub Pages tidak ada server Node.js/WebSocket yang berjalan di latar belakang. Dengan *engine* hibrida ini, komunikasi antar-tab Klien dan Advokat tetap berjalan 100% *real-time* di GitHub Pages maupun di server lokal.
+- **Keputusan 2: Pembuatan Sesi Instan 1-Klik (`startInstantConsultation`)**
+  - *Pendekatan*: Mengganti modal form panjang saat klik "Mulai Chat" dengan pembuatan sesi otomatis yang langsung mengarahkan pengguna ke `ConsultationRoom` dan menyiarkan sesi baru tersebut ke tab Advokat.
+  - *Alasan*: Pengguna tidak perlu mengetik manual judul dan kronologi panjang hanya untuk memulai percakapan.
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        CLIENT BROWSER (React 19 + Vite)                      │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │ Top Navigation Bar (3-Zone Contract: Brand | Nav Links | Primary CTA)  │  │
-│  └────────────────────────────────────────────────────────────────────────┘  │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │ Workspace Toolbar (Role Switcher: Mode Klien <-> Mode Dashboard Advokat│  │
-│  │ + Active Lawyer Profile Selector + Connection Sync Status)             │  │
-│  └────────────────────────────────────────────────────────────────────────┘  │
-│               │                                              │               │
-│               ▼ (Mode Klien)                                 ▼ (Mode Advokat)│
-│  ┌─────────────────────────────┐              ┌───────────────────────────┐  │
-│  │   DIRECTORY & CASE INTAKE   │              │  LAWYER COMMAND DASHBOARD │  │
-│  │ • Filter 5 Bidang Hukum     │              │ • Antrean Klien Aktif     │  │
-│  │ • Pencarian Kasus & Advokat │              │ • Daftar Kontrak Menunggu │  │
-│  │ • Modal Profil & Mulai Sesi │              │ • Ringkasan Beban Perkara │  │
-│  └──────────────┬──────────────┘              └─────────────┬─────────────┘  │
-│                 │                                           │                │
-│                 └─────────────────────┬─────────────────────┘                │
-│                                       ▼                                      │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │            SPLIT-SCREEN REAL-TIME CONSULTATION & REVIEW ROOM           │  │
-│  │  ┌─────────────────────────────────┬────────────────────────────────┐  │  │
-│  │  │   Real-Time Legal Chat Panel    │  Interactive Contract Reviewer │  │  │
-│  │  │ • Aliran Pesan WebSocket        │ • Pemilih Dokumen / Unggah Baru│  │  │
-│  │  │ • Kutipan Pasal (#Pasal-3)      │ • Daftar Klausul & Status Risiko│ │  │
-│  │  │ • Indikator Mengetik            │ • Editor Anotasi & Usulan Revisi│ │  │
-│  │  └─────────────────────────────────┴────────────────────────────────┘  │  │
-│  └────────────────────────────────────┬───────────────────────────────────┘  │
-└───────────────────────────────────────┼──────────────────────────────────────┘
-                                        │ WebSocket (ws://) & REST (/api/*)
-                                        ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                     EXPRESS + WEBSOCKET SERVER (Port 3000)                   │
-│                                                                              │
-│  • Authoritative State Store: Advokat, Sesi Konsultasi, Pesan, & Kontrak     │
-│  • Event Broadcast Engine:                                                   │
-│    - chat:message_created     - contract:document_uploaded                   │
-│    - chat:typing_status       - contract:clause_annotated                    │
-│    - session:created          - session:legal_summary_published              │
-└──────────────────────────────────────────────────────────────────────────────┘
+---
+
+## 4. Arsitektur Teknis & Strategi Data
+
+### Diagram Arsitektur Sinkronisasi Real-Time
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    TAB 1: SESI KLIEN (sessionStorage)                   │
+│  [Klik "Mulai Chat" / Kirim Pesan / Unggah Kontrak / Kutip Pasal]       │
+└───────────────────┬─────────────────────────────────┬───────────────────┘
+                    │                                 │
+      (Jalur Server Lokal / Preview)     (Jalur Instan Lintas Tab & GitHub Pages)
+                    ▼                                 ▼
+┌───────────────────────────────────┐ ┌───────────────────────────────────┐
+│   Express + WebSocket (/ws:3000)  │ │  BroadcastChannel + localStorage  │
+│  Broadcast event ke semua klien   │ │  ('advokaid_realtime_sync_v1')    │
+└───────────────────┬───────────────┘ └───────────────┬───────────────────┘
+                    │                                 │
+                    └────────────────┬────────────────┘
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   TAB 2: SESI ADVOKAT (sessionStorage)                  │
+│  [Reconcile State Idempoten -> Antrean & Ruang Chat Update Real-Time]   │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Model Data & Entitas Utama
-
-- **Advokat (`Lawyer`)**: ID, Nama & Gelar Hukum (S.H., M.H., C.L.A.), Nomor Induk Advokat (NIA PERADI), Spesialisasi Utama (Perdata, Pidana, Bisnis, Keluarga, Ketenagakerjaan), Pengalaman (Tahun), Yurisdiksi/Kota, Tarif Konsultasi, Bio Keahlian, dan Status Ketersediaan.
-- **Sesi Konsultasi (`ConsultationSession`)**: ID Sesi, ID Klien, ID Advokat, Judul Perkara, Kategori Hukum, Status Sesi (*Aktif*, *Menunggu Tinjauan Kontrak*, *Selesai*), Waktu Mulai, dan Kesimpulan Hukum (*Legal Opinion Summary*).
-- **Pesan Chat (`ChatMessage`)**: ID Pesan (idempoten), ID Sesi, Pengirim (*client* / *lawyer*), Nama Pengirim, Isi Pesan, Referensi Klausul Opsional (`clauseId`), Lampiran Dokumen Opsional, dan Cap Waktu.
-- **Dokumen & Klausul Kontrak (`LegalDocument` & `ContractClause`)**:
-  - Dokumen memiliki Judul, Jenis Akta/Perjanjian, Tanggal Unggah, dan Status Tinjauan Keseluruhan.
-  - Setiap Dokumen memuat daftar `ContractClause` (Nomor Pasal, Judul Pasal, Teks Asli, Status Risiko: `safe` | `warning` | `critical`, Catatan Hukum Pengacara, dan Usulan Redaksi Revisi).
-
-### Pemetaan Interaksi & State (Interactive Component Mapping)
-
-- **Filter & Pencarian Direktori**: Mengubah state filter spesialisasi (`Semua`, `Perdata`, `Pidana`, `Bisnis`, `Keluarga`, `Ketenagakerjaan`) dan kata kunci secara instan dengan penanganan *empty state* (tombol reset filter jika pencarian tidak ditemukan).
-- **Inisiasi Konsultasi Baru**: Memilih advokat dan mengisi deskripsi singkat perkara akan mengirim event `session:create` ke server, membuat ruang konsultasi baru, dan langsung mengarahkan pengguna ke ruang chat tersebut.
-- **Unggah & Buat Draf Dokumen Kontrak**: Klien dapat memilih dari templat kontrak nyata Indonesia (mis. *Perjanjian Kerja Waktu Tertentu / PKWT*, *Perjanjian Sewa Menyewa Properti*, *Perjanjian Pemegang Saham & Investasi*) atau menempelkan teks klausul kontrak sendiri untuk langsung dipecah menjadi pasal-pasal yang siap ditinjau.
-- **Anotasi Klausul & Tautan Chat**: Saat Pengacara mengubah status pasal atau menyimpan usulan revisi redaksi pada panel kontrak, server menyiarkan `contract:clause_annotated` ke seluruh klien yang terhubung dan secara otomatis menyisipkan kartu pembaruan klausul di aliran chat agar mudah didiskusikan.
+### Pemetaan Interaksi Komponen & State
+- **Direktori Advokat (`Mulai Chat` 1-Klik)**:
+  - Memeriksa apakah Klien sudah memiliki sesi dengan Advokat tersebut; jika belum, langsung membuat objek `ConsultationSession` baru beserta pesan pembuka otomatis, menyimpannya ke state bersama, menyiarkannya ke WebSocket & `BroadcastChannel`, dan langsung membuka tampilan `ConsultationRoom`.
+- **Ruang Konsultasi (`ConsultationRoom`) & Tinjauan Kontrak (`ContractReviewerPanel`)**:
+  - Pengiriman pesan chat, indikator sedang mengetik (*typing*), unggahan dokumen kontrak baru, revisi/anotasi pasal, dan pembaruan opini hukum langsung memicu sinkronisasi dua arah yang idempoten (mencegah duplikasi ID pesan/dokumen) sehingga tab lawan bicara langsung memperbarui layar dalam hitungan milidetik.
+- **Pembaruan Paket Unduhan (`.RAR` & `.ZIP`)**:
+  - Setelah kode selesai diperbarui dan dikompilasi ke `dist/`, paket `AdvokaID-SourceCode.rar` dan `AdvokaID-SourceCode.zip` ikut diperbarui otomatis.

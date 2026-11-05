@@ -141,7 +141,6 @@ export const AdvokaIdLogo: React.FC<AdvokaIdLogoProps> = ({
         <div className={`${textClass} font-bold tracking-tight font-display flex items-baseline`}>
           <span className={primaryTextColor}>Advoka</span>
           <span className={`${accentTextColor} font-extrabold`}>ID</span>
-          <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-amber-500 self-center" />
         </div>
         {showTagline && (
           <span

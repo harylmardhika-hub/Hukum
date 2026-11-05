@@ -18,12 +18,14 @@ interface LoginPageProps {
   clients: ClientAccount[];
   lawyers: Lawyer[];
   onAuthenticated: (session: AuthSession) => void;
+  onRegisterClientLocal?: (client: ClientAccount) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({
   clients,
   lawyers,
   onAuthenticated,
+  onRegisterClientLocal,
 }) => {
   const [portalRole, setPortalRole] = useState<'client' | 'lawyer'>('client');
   const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>('login');

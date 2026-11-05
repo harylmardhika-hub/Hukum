@@ -10,6 +10,7 @@ import {
   Check,
   MessageSquare,
   ChevronDown,
+  Film,
 } from 'lucide-react';
 import {
   ConsultationSession,
@@ -21,6 +22,7 @@ import {
 } from '../types/legal';
 import { LawyerAvatar } from './LawyerAvatar';
 import { ContractReviewerPanel } from './ContractReviewerPanel';
+import { LegalVideoBriefingModal } from './LegalVideoBriefing';
 
 interface ConsultationRoomProps {
   session: ConsultationSession;
@@ -93,6 +95,7 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
   const [quotedClause, setQuotedClause] = useState<ContractClause | null>(null);
   const [highlightedClauseId, setHighlightedClauseId] = useState<string | null>(null);
   const [showOpinionModal, setShowOpinionModal] = useState<boolean>(false);
+  const [showVideoModal, setShowVideoModal] = useState<boolean>(false);
   const [opinionText, setOpinionText] = useState<string>(session.legalOpinionSummary);
   const [stepsText, setStepsText] = useState<string>(
     session.recommendedNextSteps.join('\n')
@@ -222,6 +225,15 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
               <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => setShowVideoModal(true)}
+            className="min-h-[38px] inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-900 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors whitespace-nowrap shrink-0"
+          >
+            <Film className="w-3.5 h-3.5 text-amber-700" />
+            <span>Video Ringkasan</span>
+          </button>
 
           <button
             type="button"
@@ -600,6 +612,16 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* Remotion Legal Video Briefing Modal */}
+      {showVideoModal && (
+        <LegalVideoBriefingModal
+          session={session}
+          lawyer={lawyer}
+          documents={documents}
+          onClose={() => setShowVideoModal(false)}
+        />
       )}
     </div>
   );

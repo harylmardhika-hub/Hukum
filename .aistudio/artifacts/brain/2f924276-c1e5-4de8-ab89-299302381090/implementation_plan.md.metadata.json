@@ -1,6 +1,6 @@
 {
-  "summary":  "Rencana implementasi aplikasi konsultasi hukum real-time (AdvokaID) dengan tampilan dua peran (Klien & Pengacara), direktori advokat spesialis Hukum Indonesia lengkap, ruang chat WebSocket real-time, serta panel peninjauan kontrak dan berbagi dokumen hukum interaktif.",
-  "updatedAt":  "2026-10-24T23:23:42.292006583Z",
-  "requestFeedback":  true,
-  "userFacing":  true
+  "summary": "Rencana Pembaruan Sinkronisasi Real-Time Antar Tab (WebSocket + BroadcastChannel + Storage Event) & Pembukaan Ruang Chat Instan 1-Klik di AdvokaID",
+  "updatedAt": "2026-11-05T06:29:04.460547469Z",
+  "requestFeedback": true,
+  "userFacing": true
 }

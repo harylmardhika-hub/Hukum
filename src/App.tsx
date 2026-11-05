@@ -13,6 +13,7 @@ import {
   LogOut,
   UserCheck,
   Download,
+  Film,
 } from 'lucide-react';
 import {
   AuthSession,
@@ -40,6 +41,16 @@ import { ConsultationRoom } from './components/ConsultationRoom';
 import { LawyerDashboard } from './components/LawyerDashboard';
 import { LoginPage } from './components/LoginPage';
 import { AdvokaIdLogo } from './components/AdvokaIdLogo';
+import { LegalVideoBriefingModal } from './components/LegalVideoBriefing';
+import {
+  SHARED_STATE_STORAGE_KEY,
+  BROADCAST_CHANNEL_NAME,
+  CrossTabMessage,
+  getNowWIB,
+  loadPersistedSharedState,
+  savePersistedSharedState,
+  mergeServerStates,
+} from './utils/realtimeSync';
 
 type ActiveSection = 'directory' | 'consultation' | 'contracts' | 'guide';
 
@@ -53,6 +64,7 @@ const SPECIALTY_FILTERS: ('Semua Bidang' | LegalSpecialty)[] = [
 ];
 
 const SESSION_STORAGE_KEY = 'advokaid_isolated_auth_session_v1';
+const TAB_INSTANCE_ID = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export default function App() {
   // Per-Tab Isolated Authentication Session (stored in sessionStorage so each browser tab has its own independent login!)
@@ -65,13 +77,19 @@ export default function App() {
     }
   });
 
-  // Authoritative synchronized server state
-  const [clients, setClients] = useState<ClientAccount[]>(INITIAL_CLIENTS);
-  const [lawyers, setLawyers] = useState<Lawyer[]>(INITIAL_LAWYERS);
-  const [sessions, setSessions] = useState<ConsultationSession[]>(INITIAL_SESSIONS);
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
-  const [documents, setDocuments] = useState<LegalDocument[]>(INITIAL_DOCUMENTS);
+  // Authoritative synchronized state initialized from persistent shared storage
+  const initialShared = React.useMemo(() => loadPersistedSharedState(), []);
+  const [clients, setClients] = useState<ClientAccount[]>(initialShared.clients);
+  const [lawyers, setLawyers] = useState<Lawyer[]>(initialShared.lawyers);
+  const [sessions, setSessions] = useState<ConsultationSession[]>(
+    initialShared.sessions
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>(initialShared.messages);
+  const [documents, setDocuments] = useState<LegalDocument[]>(
+    initialShared.documents
+  );
   const [wsConnected, setWsConnected] = useState<boolean>(false);
+  const [crossTabReady, setCrossTabReady] = useState<boolean>(true);
 
   // Navigation State
   const [activeSection, setActiveSection] = useState<ActiveSection>('directory');
@@ -83,8 +101,9 @@ export default function App() {
   >('Semua Bidang');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [inspectingLawyer, setInspectingLawyer] = useState<Lawyer | null>(null);
+  const [showHeroVideoModal, setShowHeroVideoModal] = useState<boolean>(false);
 
-  // New Consultation Intake Modal State
+  // Optional custom consultation modal state
   const [intakeModalLawyer, setIntakeModalLawyer] = useState<Lawyer | null>(null);
   const [caseTitleInput, setCaseTitleInput] = useState<string>('');
   const [caseMessageInput, setCaseMessageInput] = useState<string>('');
@@ -102,42 +121,136 @@ export default function App() {
   } | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const bcRef = useRef<BroadcastChannel | null>(null);
+  const stateRef = useRef({
+    clients,
+    lawyers,
+    sessions,
+    messages,
+    documents,
+  });
 
-  // Connect to Express + WebSocket Server on Port 3000
+  useEffect(() => {
+    stateRef.current = { clients, lawyers, sessions, messages, documents };
+  }, [clients, lawyers, sessions, messages, documents]);
+
+  // Apply merged state and optionally broadcast to other tabs
+  const applyAndSyncState = React.useCallback(
+    (
+      nextPartial: Partial<{
+        clients: ClientAccount[];
+        lawyers: Lawyer[];
+        sessions: ConsultationSession[];
+        messages: ChatMessage[];
+        documents: LegalDocument[];
+      }>,
+      broadcastToTabs = true
+    ) => {
+      const merged = {
+        clients: nextPartial.clients ?? stateRef.current.clients,
+        lawyers: nextPartial.lawyers ?? stateRef.current.lawyers,
+        sessions: nextPartial.sessions ?? stateRef.current.sessions,
+        messages: nextPartial.messages ?? stateRef.current.messages,
+        documents: nextPartial.documents ?? stateRef.current.documents,
+      };
+
+      stateRef.current = merged;
+      setClients(merged.clients);
+      setLawyers(merged.lawyers);
+      setSessions(merged.sessions);
+      setMessages(merged.messages);
+      setDocuments(merged.documents);
+      savePersistedSharedState(merged);
+
+      if (broadcastToTabs && bcRef.current) {
+        const msg: CrossTabMessage = {
+          type: 'state:sync',
+          payload: merged,
+          senderTabId: TAB_INSTANCE_ID,
+        };
+        bcRef.current.postMessage(msg);
+      }
+    },
+    []
+  );
+
+  // Connect Cross-Tab BroadcastChannel + Storage Event Listener (Works 100% on GitHub Pages & Locally)
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      bcRef.current = channel;
+      setCrossTabReady(true);
+
+      channel.onmessage = (event: MessageEvent<CrossTabMessage>) => {
+        const data = event.data;
+        if (!data || data.senderTabId === TAB_INSTANCE_ID) return;
+
+        if (data.type === 'state:sync') {
+          const reconciled = mergeServerStates(stateRef.current, data.payload);
+          applyAndSyncState(reconciled, false);
+        } else if (data.type === 'chat:typing_update') {
+          setTypingInfo(data.payload);
+        }
+      };
+    }
+
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === SHARED_STATE_STORAGE_KEY && e.newValue) {
+        try {
+          const incoming = JSON.parse(e.newValue);
+          const reconciled = mergeServerStates(stateRef.current, incoming);
+          applyAndSyncState(reconciled, false);
+        } catch {
+          // ignore parse error
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageEvent);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageEvent);
+      channel?.close();
+    };
+  }, [applyAndSyncState]);
+
+  // Connect to Express + WebSocket Server on Port 3000 (when backend is available)
   useEffect(() => {
     let reconnectTimer: ReturnType<typeof setTimeout>;
 
     const connectWebSocket = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
-      ws.onopen = () => {
-        setWsConnected(true);
-      };
+        ws.onopen = () => {
+          setWsConnected(true);
+        };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data) as WsServerEvent;
-          if (data.type === 'state:init' || data.type === 'state:sync') {
-            if (data.payload.clients) setClients(data.payload.clients);
-            setLawyers(data.payload.lawyers);
-            setSessions(data.payload.sessions);
-            setMessages(data.payload.messages);
-            setDocuments(data.payload.documents);
-          } else if (data.type === 'chat:typing_update') {
-            setTypingInfo(data.payload);
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data) as WsServerEvent;
+            if (data.type === 'state:init' || data.type === 'state:sync') {
+              const reconciled = mergeServerStates(stateRef.current, data.payload);
+              applyAndSyncState(reconciled, false);
+            } else if (data.type === 'chat:typing_update') {
+              setTypingInfo(data.payload);
+            }
+          } catch (err) {
+            console.error('Failed to parse WS message:', err);
           }
-        } catch (err) {
-          console.error('Failed to parse WS message:', err);
-        }
-      };
+        };
 
-      ws.onclose = () => {
+        ws.onclose = () => {
+          setWsConnected(false);
+          reconnectTimer = setTimeout(connectWebSocket, 3500);
+        };
+      } catch {
         setWsConnected(false);
-        reconnectTimer = setTimeout(connectWebSocket, 2500);
-      };
+      }
     };
 
     connectWebSocket();
@@ -146,7 +259,7 @@ export default function App() {
       clearTimeout(reconnectTimer);
       wsRef.current?.close();
     };
-  }, []);
+  }, [applyAndSyncState]);
 
   const handleAuthenticated = (session: AuthSession) => {
     try {
@@ -191,16 +304,35 @@ export default function App() {
     [documents, mySessionIds]
   );
 
-  // Ensure selectedSessionId always points to a valid session owned by the logged-in user
+  const prevMySessionsCountRef = useRef<number>(mySessions.length);
+
+  // Ensure selectedSessionId always points to a valid session and auto-focuses newly arrived consultations
   useEffect(() => {
-    if (mySessions.length > 0 && !mySessions.some((s) => s.id === selectedSessionId)) {
+    if (mySessions.length === 0) {
+      prevMySessionsCountRef.current = 0;
+      return;
+    }
+    if (
+      mySessions.length > prevMySessionsCountRef.current ||
+      !mySessions.some((s) => s.id === selectedSessionId)
+    ) {
       setSelectedSessionId(mySessions[0].id);
     }
+    prevMySessionsCountRef.current = mySessions.length;
   }, [mySessions, selectedSessionId]);
 
   const emitWsEvent = (event: WsClientEvent) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(event));
+    }
+  };
+
+  const handleRegisterClientLocal = (newClient: ClientAccount) => {
+    const exists = stateRef.current.clients.some((c) => c.id === newClient.id);
+    if (!exists) {
+      applyAndSyncState({
+        clients: [...stateRef.current.clients, newClient],
+      });
     }
   };
 
@@ -211,6 +343,7 @@ export default function App() {
         clients={clients}
         lawyers={lawyers}
         onAuthenticated={handleAuthenticated}
+        onRegisterClientLocal={handleRegisterClientLocal}
       />
     );
   }
@@ -229,7 +362,7 @@ export default function App() {
     (d) => d.sessionId === currentSession?.id
   );
 
-  // Handlers for Real-Time Chat & Contract Review
+  // Handlers for Real-Time Chat & Contract Review (Dual WebSocket + Cross-Tab BroadcastChannel Sync)
   const handleSendMessage = (payload: {
     sessionId: string;
     senderRole: 'client' | 'lawyer';
@@ -239,16 +372,28 @@ export default function App() {
     referencedClauseLabel?: string;
   }) => {
     const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const now = new Date();
-    const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(
-      now.getMinutes()
-    ).padStart(2, '0')} WIB`;
+    const timestamp = getNowWIB();
 
-    setMessages((prev) =>
-      prev.some((m) => m.id === id)
-        ? prev
-        : [...prev, { id, timestamp, ...payload }]
-    );
+    const newMsg: ChatMessage = { id, timestamp, ...payload };
+    const nextMessages = stateRef.current.messages.some((m) => m.id === id)
+      ? stateRef.current.messages
+      : [...stateRef.current.messages, newMsg];
+
+    const nextSessions = stateRef.current.sessions.map((s) => {
+      if (s.id !== payload.sessionId) return s;
+      return {
+        ...s,
+        unreadLawyerCount:
+          payload.senderRole === 'client' ? s.unreadLawyerCount + 1 : 0,
+        unreadClientCount:
+          payload.senderRole === 'lawyer' ? s.unreadClientCount + 1 : 0,
+      };
+    });
+
+    applyAndSyncState({
+      messages: nextMessages,
+      sessions: nextSessions,
+    });
 
     emitWsEvent({
       type: 'chat:send',
@@ -258,14 +403,25 @@ export default function App() {
 
   const handleTypingChange = (isTyping: boolean) => {
     if (!currentSession) return;
+    const typingPayload = {
+      sessionId: currentSession.id,
+      senderRole: activeRole,
+      senderName: authSession.name,
+      isTyping,
+    };
+
+    if (bcRef.current) {
+      const msg: CrossTabMessage = {
+        type: 'chat:typing_update',
+        payload: typingPayload,
+        senderTabId: TAB_INSTANCE_ID,
+      };
+      bcRef.current.postMessage(msg);
+    }
+
     emitWsEvent({
       type: 'chat:typing',
-      payload: {
-        sessionId: currentSession.id,
-        senderRole: activeRole,
-        senderName: authSession.name,
-        isTyping,
-      },
+      payload: typingPayload,
     });
   };
 
@@ -279,27 +435,59 @@ export default function App() {
     updatedBy: string;
     postToChat?: boolean;
   }) => {
-    setDocuments((prev) =>
-      prev.map((doc) => {
-        if (doc.id !== payload.documentId) return doc;
-        return {
-          ...doc,
-          overallStatus: 'Sedang Ditinjau',
-          clauses: doc.clauses.map((c) =>
-            c.id === payload.clauseId
-              ? {
-                  ...c,
-                  riskStatus: payload.riskStatus,
-                  lawyerNote: payload.lawyerNote,
-                  proposedRevision: payload.proposedRevision,
-                  lastUpdatedBy: payload.updatedBy,
-                  lastUpdatedAt: 'Baru saja',
-                }
-              : c
-          ),
-        };
-      })
-    );
+    const timestamp = getNowWIB();
+    let targetClauseLabel = '';
+
+    const nextDocuments = stateRef.current.documents.map((doc) => {
+      if (doc.id !== payload.documentId) return doc;
+      return {
+        ...doc,
+        overallStatus: 'Sedang Ditinjau' as const,
+        clauses: doc.clauses.map((c) => {
+          if (c.id !== payload.clauseId) return c;
+          targetClauseLabel = `${c.clauseNumber} — ${c.title}`;
+          return {
+            ...c,
+            riskStatus: payload.riskStatus,
+            lawyerNote: payload.lawyerNote,
+            proposedRevision: payload.proposedRevision,
+            lastUpdatedBy: payload.updatedBy,
+            lastUpdatedAt: timestamp,
+          };
+        }),
+      };
+    });
+
+    let nextMessages = stateRef.current.messages;
+    if (payload.postToChat && targetClauseLabel) {
+      const statusLabel =
+        payload.riskStatus === 'critical'
+          ? 'Risiko Hukum Tinggi'
+          : payload.riskStatus === 'warning'
+            ? 'Perlu Revisi'
+            : 'Klausul Aman';
+
+      const chatNote: ChatMessage = {
+        id: `msg-annot-${Date.now()}`,
+        sessionId: payload.sessionId,
+        senderRole: activeRole,
+        senderName: payload.updatedBy,
+        content: `[Pembaruan Tinjauan ${targetClauseLabel.split(' — ')[0]} — Status: ${statusLabel}] ${payload.lawyerNote}${
+          payload.proposedRevision
+            ? ` | Usulan Perbaikan: "${payload.proposedRevision}"`
+            : ''
+        }`,
+        timestamp,
+        referencedClauseId: payload.clauseId,
+        referencedClauseLabel: targetClauseLabel,
+      };
+      nextMessages = [...nextMessages, chatNote];
+    }
+
+    applyAndSyncState({
+      documents: nextDocuments,
+      messages: nextMessages,
+    });
 
     emitWsEvent({
       type: 'contract:annotate_clause',
@@ -315,13 +503,14 @@ export default function App() {
     uploadedBy: 'client' | 'lawyer';
     clauses: Omit<ContractClause, 'id'>[];
   }) => {
+    const timestamp = getNowWIB();
     const newDoc: LegalDocument = {
       id: payload.id,
       sessionId: payload.sessionId,
       title: payload.title,
       documentType: payload.documentType,
       uploadedBy: payload.uploadedBy,
-      uploadedAt: 'Baru saja',
+      uploadedAt: timestamp,
       overallStatus: 'Menunggu Tinjauan',
       clauses: payload.clauses.map((c, i) => ({
         ...c,
@@ -329,7 +518,22 @@ export default function App() {
       })),
     };
 
-    setDocuments((prev) => [...prev, newDoc]);
+    const uploadMsg: ChatMessage = {
+      id: `msg-doc-${payload.id}`,
+      sessionId: payload.sessionId,
+      senderRole: payload.uploadedBy,
+      senderName: authSession.name,
+      content: `Mengunggah dokumen kontrak baru untuk ditinjau bersama: "${payload.title}" (${payload.clauses.length} pasal).`,
+      timestamp,
+      attachedDocumentId: newDoc.id,
+      attachedDocumentTitle: newDoc.title,
+    };
+
+    applyAndSyncState({
+      documents: [...stateRef.current.documents, newDoc],
+      messages: [...stateRef.current.messages, uploadMsg],
+    });
+
     emitWsEvent({
       type: 'contract:upload_document',
       payload,
@@ -342,18 +546,31 @@ export default function App() {
     recommendedNextSteps: string[];
     status: ConsultationSession['status'];
   }) => {
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === payload.sessionId
-          ? {
-              ...s,
-              legalOpinionSummary: payload.legalOpinionSummary,
-              recommendedNextSteps: payload.recommendedNextSteps,
-              status: payload.status,
-            }
-          : s
-      )
+    const timestamp = getNowWIB();
+    const nextSessions = stateRef.current.sessions.map((s) =>
+      s.id === payload.sessionId
+        ? {
+            ...s,
+            legalOpinionSummary: payload.legalOpinionSummary,
+            recommendedNextSteps: payload.recommendedNextSteps,
+            status: payload.status,
+          }
+        : s
     );
+
+    const opinionMsg: ChatMessage = {
+      id: `msg-opinion-${Date.now()}`,
+      sessionId: payload.sessionId,
+      senderRole: 'lawyer',
+      senderName: authSession.name,
+      content: `[Ringkasan Opini Hukum Diperbarui — Status: ${payload.status}] ${payload.legalOpinionSummary}`,
+      timestamp,
+    };
+
+    applyAndSyncState({
+      sessions: nextSessions,
+      messages: [...stateRef.current.messages, opinionMsg],
+    });
 
     emitWsEvent({
       type: 'session:update_opinion',
@@ -361,45 +578,80 @@ export default function App() {
     });
   };
 
-  const openConsultationIntake = (lawyer: Lawyer) => {
-    setIntakeModalLawyer(lawyer);
-    setCaseTitleInput(
-      `Konsultasi & Telaah Dokumen ${lawyer.specialty} — ${lawyer.name.split(',')[0]}`
-    );
-    setCaseMessageInput(
-      `Selamat siang ${lawyer.name.split(',')[0]}, saya ${authSession.name} ingin berkonsultasi mengenai perkara ${lawyer.specialty.toLowerCase()} serta memohon peninjauan atas pasal-pasal krusial di dalam draf perjanjian kami.`
-    );
-  };
-
-  const handleCreateNewSession = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!intakeModalLawyer || !caseTitleInput.trim() || !caseMessageInput.trim()) {
+  // 1-CLICK INSTANT CONSULTATION ROOM ENTRY (No manual intake form required!)
+  const startInstantConsultation = (lawyer: Lawyer) => {
+    const existing = mySessions.find((s) => s.lawyerId === lawyer.id);
+    if (existing) {
+      setSelectedSessionId(existing.id);
+      setActiveSection('consultation');
+      setInspectingLawyer(null);
       return;
     }
 
+    const nowWib = getNowWIB();
     const newSessionId = `ses-${Date.now()}`;
+    const matchingTemplate =
+      CONTRACT_TEMPLATES.find((t) => t.category === lawyer.specialty) ||
+      CONTRACT_TEMPLATES[0];
+
     const newSession: ConsultationSession = {
       id: newSessionId,
       caseNumber: `REG/2026/ADV-${Math.floor(1000 + Math.random() * 9000)}`,
       clientId: authSession.userId,
       clientName: authSession.name,
       clientCompany: authSession.subtitle,
-      lawyerId: intakeModalLawyer.id,
-      title: caseTitleInput.trim(),
-      category: intakeModalLawyer.specialty,
-      status: attachInitialTemplate ? 'Menunggu Tinjauan Kontrak' : 'Aktif',
-      startedAt: 'Baru saja',
+      lawyerId: lawyer.id,
+      title: `Konsultasi ${lawyer.specialty} — ${authSession.name}`,
+      category: lawyer.specialty,
+      status: 'Aktif',
+      startedAt: nowWib,
       legalOpinionSummary:
-        'Sesi konsultasi baru telah dibuka. Advokat sedang mempelajari pokok perkara dan dokumen kontrak yang dilampirkan.',
+        'Ruang konsultasi baru telah aktif. Silakan sampaikan pertanyaan hukum Anda di kolom chat atau pilih pasal kontrak di panel kanan untuk ditinjau bersama Advokat.',
       recommendedNextSteps: [
-        'Uraikan kronologi singkat dan tujuan hukum yang ingin dicapai.',
-        'Klik pasal spesifik pada panel kanan untuk berdiskusi langsung di ruang chat.',
+        'Tulis pokok pertanyaan hukum Anda langsung di ruang chat.',
+        'Unggah atau kutip pasal kontrak di panel kanan untuk dibahas bersama Advokat.',
       ],
       unreadClientCount: 0,
       unreadLawyerCount: 1,
     };
 
-    setSessions((prev) => [newSession, ...prev]);
+    const docId = `doc-${Date.now()}`;
+    const starterDoc: LegalDocument = {
+      id: docId,
+      sessionId: newSessionId,
+      title: `${matchingTemplate.title.replace(/\s+/g, '_')}.pdf`,
+      documentType: matchingTemplate.documentType,
+      uploadedBy: 'client',
+      uploadedAt: nowWib,
+      overallStatus: 'Menunggu Tinjauan',
+      clauses: matchingTemplate.clauses.map((c, idx) => ({
+        ...c,
+        id: `${docId}-cl-${idx + 1}`,
+      })),
+    };
+
+    const initialMessageText = `Halo ${
+      lawyer.name.split(',')[0]
+    }, saya ${authSession.name} ingin berkonsultasi mengenai perkara ${
+      lawyer.specialty
+    } dan meninjau draf kontrak terlampir.`;
+
+    const initMsg: ChatMessage = {
+      id: `msg-init-${newSessionId}`,
+      sessionId: newSessionId,
+      senderRole: 'client',
+      senderName: authSession.name,
+      content: initialMessageText,
+      timestamp: nowWib,
+      attachedDocumentId: docId,
+      attachedDocumentTitle: starterDoc.title,
+    };
+
+    applyAndSyncState({
+      sessions: [newSession, ...stateRef.current.sessions],
+      documents: [...stateRef.current.documents, starterDoc],
+      messages: [...stateRef.current.messages, initMsg],
+    });
 
     emitWsEvent({
       type: 'session:create',
@@ -408,18 +660,29 @@ export default function App() {
         clientId: authSession.userId,
         clientName: authSession.name,
         clientCompany: authSession.subtitle,
-        lawyerId: intakeModalLawyer.id,
+        lawyerId: lawyer.id,
         title: newSession.title,
-        category: intakeModalLawyer.specialty,
-        initialMessage: caseMessageInput.trim(),
-        templateId: attachInitialTemplate ? selectedTemplateId : undefined,
+        category: lawyer.specialty,
+        initialMessage: initialMessageText,
+        templateId: matchingTemplate.id,
       },
     });
 
     setSelectedSessionId(newSessionId);
     setActiveSection('consultation');
-    setIntakeModalLawyer(null);
     setInspectingLawyer(null);
+    setIntakeModalLawyer(null);
+  };
+
+  const openConsultationIntake = (lawyer: Lawyer) => {
+    // Directly enter the chat room in 1 click as requested by the user
+    startInstantConsultation(lawyer);
+  };
+
+  const handleCreateNewSession = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!intakeModalLawyer) return;
+    startInstantConsultation(intakeModalLawyer);
   };
 
   // Filtered Lawyers in Directory
@@ -548,9 +811,19 @@ export default function App() {
 
           <div className="flex items-center justify-between sm:justify-end gap-3 text-[11px] sm:text-xs text-slate-300">
             <span>
-              Koneksi:{' '}
-              <strong className={wsConnected ? 'text-emerald-400' : 'text-amber-400'}>
-                {wsConnected ? 'Real-Time Aktif' : 'Menghubungkan...'}
+              Sinkronisasi:{' '}
+              <strong
+                className={
+                  wsConnected || crossTabReady
+                    ? 'text-emerald-400'
+                    : 'text-amber-400'
+                }
+              >
+                {wsConnected
+                  ? 'Real-Time Server & Tab Aktif'
+                  : crossTabReady
+                    ? 'Real-Time Antar Tab Aktif'
+                    : 'Menghubungkan...'}
               </strong>
             </span>
             {currentSession && (
@@ -654,14 +927,24 @@ export default function App() {
                           {currentSessionMessages.length} Pesan
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveSection('consultation')}
-                        className="min-h-[42px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-950 bg-amber-400 rounded-lg hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0"
-                      >
-                        <span>Lanjutkan Chat</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowHeroVideoModal(true)}
+                          className="min-h-[42px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0"
+                        >
+                          <Film className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Video Ringkasan</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveSection('consultation')}
+                          className="min-h-[42px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-950 bg-amber-400 rounded-lg hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0"
+                        >
+                          <span>Lanjutkan Chat</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -1309,6 +1592,20 @@ export default function App() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* REMOTION HERO VIDEO BRIEFING MODAL */}
+      {showHeroVideoModal && (
+        <LegalVideoBriefingModal
+          session={currentSession || sessions[0]}
+          lawyer={currentSessionLawyer || lawyers[0]}
+          documents={
+            currentSessionDocuments.length > 0
+              ? currentSessionDocuments
+              : documents.filter((d) => d.sessionId === (currentSession || sessions[0])?.id)
+          }
+          onClose={() => setShowHeroVideoModal(false)}
+        />
       )}
 
       {/* QUIET FOOTER */}

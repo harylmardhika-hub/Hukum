@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@remotion/player": "^4.0.538",
     "@tailwindcss/vite": "^4.3.3",
     "@types/ws": "^8.18.2",
     "@vitejs/plugin-react": "^6.1.1",
@@ -22,6 +23,7 @@
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "remotion": "^4.0.538",
     "vite": "^8.3.0",
     "ws": "^8.22.0"
   },

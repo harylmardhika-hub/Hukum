@@ -23,6 +23,10 @@
    - **Panel Kanan (Meja Tinjauan Kontrak)**: Pemeriksaan pasal demi pasal dengan penanda status risiko (**Aman**, **Perlu Revisi**, **Risiko Tinggi**), catatan hukum advokat, dan usulan perbaikan pasal.
    - **Unggah Kontrak**: Mendukung unggah dari draf kontrak standar maupun menempelkan (*paste*) teks pasal kontrak sendiri.
 
+4. **Video Ringkasan Perkara & Kontrak Terprogram (`Remotion` + `@remotion/player`)**
+   - Menghasilkan tayangan video ringkasan perkara 3 babak (Identitas Perkara & Advokat, Audit Risiko Klausul Kontrak, dan Kesimpulan Opini Hukum) secara otomatis dari data perkara aktif.
+   - Dirancang dengan disiplin visual **Anti-Slop Swiss Editorial** (tipografi serif editorial `Newsreader`, angka tabular `JetBrains Mono`, garis grid 1px tegas, tanpa efek neon/blur berlebihan).
+
 ---
 
 ## Struktur Folder Proyek
