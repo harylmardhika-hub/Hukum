@@ -27,7 +27,9 @@ import {
 import { GoogleGenAI, Type } from '@google/genai';
 import {
   runLocalContextualLegalEngine,
+  selectAdvocateReplyStyle,
   AutoAdvocateResult,
+  AdvocateReplyStyle,
 } from './src/utils/autoAdvocateEngine.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -510,12 +512,19 @@ async function startServer() {
       lawyer: Lawyer;
       document?: LegalDocument;
       recentMessages: ChatMessage[];
+      preferredStyle?: 'auto' | AdvocateReplyStyle;
     };
 
     if (!params?.clientMessage || !params?.session || !params?.lawyer) {
       res.status(400).json({ error: 'Parameter konsultasi tidak lengkap.' });
       return;
     }
+
+    const styleCtx = selectAdvocateReplyStyle({
+      clientMessage: params.clientMessage,
+      document: params.document,
+      preferredStyle: params.preferredStyle,
+    });
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
@@ -543,8 +552,13 @@ async function startServer() {
             .map((m) => `${m.senderName} (${m.senderRole}): ${m.content}`)
             .join('\n') || 'Belum ada riwayat chat.';
 
-        const promptText = `Anda adalah Advokat senior Indonesia: ${params.lawyer.name} (${params.lawyer.niaPeradi}), Spesialis ${params.lawyer.specialty}.
+        const promptText = `Anda adalah Advokat senior Indonesia: ${params.lawyer.name} (${params.lawyer.niaPeradi}), Spesialis ${params.lawyer.specialty}, berpraktik di ${params.lawyer.jurisdiction}.
 Anda sedang mengobrol langsung di ruang chat dengan klien Anda: ${params.session.clientName}.
+
+Profil Gaya Bahasa yang WAJIB digunakan saat ini: "${styleCtx.style}" (Urgensi terdeteksi: ${styleCtx.urgency} — ${styleCtx.reason}).
+- Jika "Ramah & Mendukung": Gunakan nada hangat, akrab, suportif, santai seperti mengobrol di WhatsApp (cocok untuk tanya kabar, cuaca, sapaan, atau menenangkan klien).
+- Jika "Formal & Profesional": Gunakan bahasa hukum Indonesia yang berwibawa, terstruktur, dan merujuk asas hukum positif (KUHPerdata/UU).
+- Jika "Singkat & To-the-point": Jawab langsung ke inti tindakan dalam 1-2 kalimat padat dan lugas.
 
 Daftar Pasal Kontrak Saat Ini (${params.document?.title || 'Dokumen'}):
 ${clausesSummary}
@@ -555,12 +569,10 @@ ${recentChatHistory}
 Pesan Terbaru dari Klien:
 "${params.clientMessage}"
 
-Aturan Gaya Bahasa & Tindakan (SANGAT PENTING):
-1. Gunakan bahasa Indonesia percakapan yang natural, hangat, luwes, dan manusiawi seperti pengacara senior asli yang sedang chat dengan kliennya (sapa nama panggilan klien seperti "${params.session.clientName.split(/\s+/)[0]}").
-2. JANGAN PERNAH mengulang kalimat klien secara kaku (jangan tulis "Saya telah mencatat poin Anda: ...").
-3. JANGAN GUNAKAN simbol markdown bintang (** atau *) sama sekali karena teks ditampilkan sebagai plain text.
-4. Jika Klien hanya menyapa ("Halo pak", "Pagi", "Tes") atau mengucapkan terima kasih, balas sapaan tersebut secara ramah dan natural tanpa melampirkan referencedClauseId kecuali relevan.
-5. Jika Klien meminta merombak, mengubah, merevisi, menghapus denda, atau mengamankan pasal tertentu (atau semua pasal berisiko), ISI array "clauseUpdates" dengan "clauseId" yang tepat dari daftar di atas, ubah "riskStatus" menjadi "safe", tulis "replaceOriginalText" (bunyi pasal baru yang sudah dirombak), "proposedRevision" (rumusan pengganti), dan "lawyerNote" singkat.`;
+Aturan Tindakan:
+1. JANGAN PERNAH mengulang kalimat klien secara kaku dan JANGAN GUNAKAN simbol markdown bintang (** atau *).
+2. Jika Klien menyapa, menanyakan kabar, cuaca, sedang apa, atau basa-basi harian, jawab secara natural dan manusiawi sesuai gaya "${styleCtx.style}" tanpa melampirkan referencedClauseId.
+3. Jika Klien meminta merombak, mengubah, merevisi, menghapus denda, atau mengamankan pasal tertentu (atau semua pasal berisiko), ISI array "clauseUpdates" dengan "clauseId" yang tepat, ubah "riskStatus" menjadi "safe", tulis "replaceOriginalText" (bunyi pasal baru yang sudah dirombak), "proposedRevision", dan "lawyerNote".`;
 
         const response = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
@@ -572,15 +584,15 @@ Aturan Gaya Bahasa & Tindakan (SANGAT PENTING):
               properties: {
                 replyText: {
                   type: Type.STRING,
-                  description: 'Balasan chat natural tanpa tanda bintang markdown (**).',
+                  description: 'Balasan chat natural sesuai gaya bahasa terpilih tanpa tanda bintang markdown (**).',
                 },
                 referencedClauseId: {
                   type: Type.STRING,
-                  description: 'ID pasal yang dirombak atau dibahas spesifik (kosongkan jika hanya sapaan).',
+                  description: 'ID pasal yang dirombak atau dibahas spesifik (kosongkan jika hanya sapaan/cuaca/kabar).',
                 },
                 referencedClauseLabel: {
                   type: Type.STRING,
-                  description: 'Label pasal seperti "Pasal 2 — Judul Pasal" (kosongkan jika hanya sapaan).',
+                  description: 'Label pasal seperti "Pasal 2 — Judul Pasal" (kosongkan jika hanya sapaan/cuaca/kabar).',
                 },
                 clauseUpdates: {
                   type: Type.ARRAY,
@@ -614,6 +626,8 @@ Aturan Gaya Bahasa & Tindakan (SANGAT PENTING):
               .trim();
             res.json({
               replyText: cleanReply,
+              appliedStyle: styleCtx.style,
+              detectedUrgency: styleCtx.urgency,
               referencedClauseId: parsed.referencedClauseId || undefined,
               referencedClauseLabel: parsed.referencedClauseLabel || undefined,
               clauseUpdates: Array.isArray(parsed.clauseUpdates)

@@ -42,6 +42,7 @@ export interface Lawyer {
   isOnline: boolean;
   bio: string;
   notableCredentials: string[];
+  photoUrl?: string;
   avatarStyle: {
     bgGradient: string;
     suitColor: string;

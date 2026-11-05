@@ -8,6 +8,19 @@ import {
 } from '../types/legal';
 import { getNowWIB } from './realtimeSync';
 
+export type AdvocateReplyStyle =
+  | 'Formal & Profesional'
+  | 'Ramah & Mendukung'
+  | 'Singkat & To-the-point';
+
+export type CaseUrgencyLevel = 'tinggi' | 'sedang' | 'santai';
+
+export interface StyleSelectionContext {
+  style: AdvocateReplyStyle;
+  urgency: CaseUrgencyLevel;
+  reason: string;
+}
+
 export interface AutoAdvocateClauseUpdate {
   clauseId: string;
   riskStatus: ClauseRiskStatus;
@@ -27,6 +40,8 @@ export interface AutoAdvocateNewClause {
 
 export interface AutoAdvocateResult {
   replyText: string;
+  appliedStyle?: AdvocateReplyStyle;
+  detectedUrgency?: CaseUrgencyLevel;
   referencedClauseId?: string;
   referencedClauseLabel?: string;
   clauseUpdates: AutoAdvocateClauseUpdate[];
@@ -46,9 +61,112 @@ function stripMarkdownFormatting(text: string): string {
 }
 
 function getClientShortName(fullName: string): string {
-  const cleaned = fullName.replace(/^(Bpk\.|Ibu|Sdr\.|Sdri\.|Dr\.|Ir\.)\s*/i, '').trim();
+  const cleaned = fullName
+    .replace(/^(Bpk\.|Ibu|Sdr\.|Sdri\.|Dr\.|Ir\.)\s*/i, '')
+    .trim();
   const first = cleaned.split(/\s+/)[0];
   return first || fullName;
+}
+
+/**
+ * Automatically selects the Advocate's reply style ('Formal & Profesional',
+ * 'Ramah & Mendukung', or 'Singkat & To-the-point') based on detected case urgency,
+ * message tone, and clause risk profile.
+ */
+export function selectAdvocateReplyStyle(params: {
+  clientMessage: string;
+  document?: LegalDocument;
+  preferredStyle?: 'auto' | AdvocateReplyStyle;
+}): StyleSelectionContext {
+  const { clientMessage, document, preferredStyle } = params;
+  const q = clientMessage.toLowerCase().trim();
+  const clauses = document?.clauses || [];
+  const criticalCount = clauses.filter((c) => c.riskStatus === 'critical').length;
+
+  // Allow explicit override if chosen by the user
+  if (preferredStyle && preferredStyle !== 'auto') {
+    const isUrgent =
+      /\b(cepat|segera|urgent|darurat|sekarang|langsung|hari ini|deadline)\b/i.test(q) ||
+      criticalCount >= 2;
+    return {
+      style: preferredStyle,
+      urgency: isUrgent ? 'tinggi' : 'sedang',
+      reason: `Gaya dipilih: ${preferredStyle}`,
+    };
+  }
+
+  // 1. Casual small talk, greetings, weather, how-are-you, or emotional worry -> 'Ramah & Mendukung'
+  const isCasualOrSupportive =
+    /\b(halo|hai|pagi|siang|sore|malam|assalamualaikum|kabar|kabarnya|sehat|cuaca|hujan|panas|mendung|gerimis|macet|banjir|dingin|makan|ngopi|kopi|sibuk|bingung|takut|ragu|khawatir|curhat|cemas|makasih|terima kasih)\b/i.test(
+      q
+    ) && !/\b(somasi|gugatan|pidana|pengadilan|arbitrase|pasal \d+)\b/i.test(q);
+
+  if (isCasualOrSupportive) {
+    return {
+      style: 'Ramah & Mendukung',
+      urgency: 'santai',
+      reason: 'Sapaan santai / percakapan sehari-hari / dukungan klien',
+    };
+  }
+
+  // 2. High-urgency / rapid action / direct revision command -> 'Singkat & To-the-point'
+  const isHighUrgencyDirect =
+    /\b(cepat|segera|urgent|darurat|sekarang|langsung|intinya|singkat|buruan|deadline|tolong rombak|rombak semua|hapus denda|ubah pasal)\b/i.test(
+      q
+    ) ||
+    (q.split(/\s+/).length <= 7 &&
+      /\b(rombak|revisi|ubah|ganti|hapus|tambah|tambahkan)\b/i.test(q));
+
+  if (isHighUrgencyDirect) {
+    return {
+      style: 'Singkat & To-the-point',
+      urgency: 'tinggi',
+      reason: 'Instruksi tindakan cepat / urgensi tinggi',
+    };
+  }
+
+  // 3. Formal legal analysis, high-stakes dispute, statutory questions -> 'Formal & Profesional'
+  const isFormalLegal =
+    /\b(kuhperdata|undang-undang|uu|pp|peraturan|somasi|wanprestasi|pengadilan|gugatan|arbitrase|bani|legal opinion|opini hukum|keabsahan|batal demi hukum|sah|ditandatangani)\b/i.test(
+      q
+    ) || criticalCount > 0;
+
+  if (isFormalLegal) {
+    return {
+      style: 'Formal & Profesional',
+      urgency: criticalCount > 0 ? 'tinggi' : 'sedang',
+      reason: 'Telaah hukum formal & mitigasi risiko kontrak',
+    };
+  }
+
+  // Default balanced style
+  return {
+    style: 'Ramah & Mendukung',
+    urgency: 'sedang',
+    reason: 'Diskusi konsultasi pendampingan klien',
+  };
+}
+
+/**
+ * Formats a response variant according to the selected AdvocateReplyStyle.
+ */
+function pickStyledVariant(
+  style: AdvocateReplyStyle,
+  variants: {
+    formal: string;
+    friendly: string;
+    concise: string;
+  }
+): string {
+  switch (style) {
+    case 'Formal & Profesional':
+      return variants.formal;
+    case 'Singkat & To-the-point':
+      return variants.concise;
+    case 'Ramah & Mendukung':
+    default:
+      return variants.friendly;
+  }
 }
 
 /**
@@ -63,18 +181,31 @@ export async function generateAdvocateAutoResponse(params: {
   lawyer: Lawyer;
   document?: LegalDocument;
   recentMessages: ChatMessage[];
+  preferredStyle?: 'auto' | AdvocateReplyStyle;
 }): Promise<AutoAdvocateResult> {
+  const styleCtx = selectAdvocateReplyStyle({
+    clientMessage: params.clientMessage,
+    document: params.document,
+    preferredStyle: params.preferredStyle,
+  });
+
   try {
     const res = await fetch('/api/advocate/auto-respond', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        ...params,
+        selectedStyle: styleCtx.style,
+        detectedUrgency: styleCtx.urgency,
+      }),
     });
     if (res.ok) {
       const data = (await res.json()) as AutoAdvocateResult;
       if (data && typeof data.replyText === 'string' && data.replyText.trim()) {
         return {
           ...data,
+          appliedStyle: data.appliedStyle || styleCtx.style,
+          detectedUrgency: data.detectedUrgency || styleCtx.urgency,
           replyText: stripMarkdownFormatting(data.replyText),
         };
       }
@@ -86,14 +217,16 @@ export async function generateAdvocateAutoResponse(params: {
   const local = runLocalContextualLegalEngine(params);
   return {
     ...local,
+    appliedStyle: local.appliedStyle || styleCtx.style,
+    detectedUrgency: local.detectedUrgency || styleCtx.urgency,
     replyText: stripMarkdownFormatting(local.replyText),
   };
 }
 
 /**
- * Natural, human-like Indonesian conversational & contract revision engine.
- * Responds like normal everyday chat for greetings, small talk, and questions,
- * while automatically revising/adding contract clauses when requested.
+ * Natural, human-like Indonesian conversational & contract revision engine
+ * with dynamic reply style selection ('Formal & Profesional', 'Ramah & Mendukung',
+ * 'Singkat & To-the-point').
  */
 export function runLocalContextualLegalEngine(params: {
   clientMessage: string;
@@ -102,6 +235,7 @@ export function runLocalContextualLegalEngine(params: {
   lawyer: Lawyer;
   document?: LegalDocument;
   recentMessages: ChatMessage[];
+  preferredStyle?: 'auto' | AdvocateReplyStyle;
 }): AutoAdvocateResult {
   const {
     clientMessage,
@@ -109,14 +243,20 @@ export function runLocalContextualLegalEngine(params: {
     session,
     lawyer,
     document,
-    recentMessages,
+    preferredStyle,
   } = params;
   const q = clientMessage.toLowerCase().trim();
   const clauses = document?.clauses || [];
   const nowWib = getNowWIB();
   const clientFirst = getClientShortName(session.clientName);
   const lawyerShort = lawyer.name.split(',')[0].trim();
-  const turnSeed = (recentMessages?.length || 0) % 3;
+
+  const styleCtx = selectAdvocateReplyStyle({
+    clientMessage,
+    document,
+    preferredStyle,
+  });
+  const { style, urgency } = styleCtx;
 
   // Identify if a specific existing Pasal number is mentioned (e.g., "Pasal 2")
   const pasalMatch = clientMessage.match(/\bpasal\s*(\d+)\b/i);
@@ -137,23 +277,131 @@ export function runLocalContextualLegalEngine(params: {
       q
     );
 
-  // 1. Islamic Greeting ("assalamualaikum")
-  if (/\b(assalamualaikum|assalamu'alaikum|salam)\b/i.test(q) && !mentionsContractAction) {
+  // 1. Weather / Traffic / Atmosphere small talk ("cuaca gimana", "hujan", "panas", "mendung", "macet", "banjir")
+  if (
+    /\b(cuaca|hujan|gerimis|mendung|panas|terik|dingin|angin|banjir|macet)\b/i.test(
+      q
+    ) &&
+    !mentionsContractAction
+  ) {
+    const isRain = /\b(hujan|gerimis|mendung|banjir)\b/i.test(q);
+    const isHot = /\b(panas|terik|gerah)\b/i.test(q);
+    const isTraffic = /\b(macet)\b/i.test(q);
+
+    if (isRain) {
+      return {
+        appliedStyle: style,
+        detectedUrgency: urgency,
+        replyText: pickStyledVariant(style, {
+          friendly: `Di daerah kantor saya di ${lawyer.jurisdiction} juga lagi mendung dan sempat hujan nih, ${clientFirst}. Memang cuaca belakangan ini sering berubah-ubah, jaga kesehatan ya! Ngomong-ngomong, ada hal yang lagi ingin kita obrolkan santai hari ini?`,
+          formal: `Cuaca di wilayah ${lawyer.jurisdiction} saat ini juga sedang turun hujan, ${clientFirst}. Semoga aktivitas Anda tetap berjalan lancar. Silakan sampaikan apabila ada hal yang ingin didiskusikan.`,
+          concise: `Di ${lawyer.jurisdiction} juga sedang hujan, ${clientFirst}. Semoga tetap aman di perjalanan. Ada yang ingin kita bahas sekarang?`,
+        }),
+        clauseUpdates: [],
+      };
+    }
+
+    if (isHot) {
+      return {
+        appliedStyle: style,
+        detectedUrgency: urgency,
+        replyText: pickStyledVariant(style, {
+          friendly: `Iya nih ${clientFirst}, di ${lawyer.jurisdiction} hari ini juga lumayan terik cuacanya. Jangan lupa banyak minum air putih ya. Gimana, sambil ngadem ada yang mau kita diskusikan?`,
+          formal: `Benar ${clientFirst}, cuaca hari ini di ${lawyer.jurisdiction} cukup terik. Semoga aktivitas Anda tetap nyaman. Silakan jika ada pokok bahasan yang ingin kita tinjau.`,
+          concise: `Di sini juga cukup panas hari ini, ${clientFirst}. Silakan kalau ada poin yang mau langsung kita bahas.`,
+        }),
+        clauseUpdates: [],
+      };
+    }
+
+    if (isTraffic) {
+      return {
+        appliedStyle: style,
+        detectedUrgency: urgency,
+        replyText: pickStyledVariant(style, {
+          friendly: `Wah, hati-hati di jalan ya ${clientFirst}. Jam-jam segini memang lalu lintas sering padat. Santai saja, kabari lagi kalau sudah sampai atau mau lanjut ngobrol di sini.`,
+          formal: `Semoga perjalanan Anda tetap lancar, ${clientFirst}. Kita dapat melanjutkan diskusi ini kapan saja saat Anda sudah nyaman.`,
+          concise: `Hati-hati di jalan, ${clientFirst}. Kabari saja saat siap lanjut diskusi.`,
+        }),
+        clauseUpdates: [],
+      };
+    }
+
     return {
-      replyText: `Waalaikumsalam ${clientFirst}, silakan. Ada yang lagi ingin diobrolkan atau dikonsultasikan hari ini?`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Cuaca di sekitar ${lawyer.jurisdiction} hari ini cukup bersahabat kok, ${clientFirst}. Di tempat Anda sendiri gimana cuacanya? Semoga hari ini lancar terus ya kegiatannya.`,
+        formal: `Cuaca di wilayah ${lawyer.jurisdiction} hari ini cukup kondusif, ${clientFirst}. Semoga kegiatan Anda juga berjalan lancar hari ini.`,
+        concise: `Cuaca di ${lawyer.jurisdiction} cukup cerah hari ini, ${clientFirst}. Ada yang bisa saya bantu?`,
+      }),
       clauseUpdates: [],
     };
   }
 
-  // 2. Asking "How are you?" ("apa kabar", "sehat pak", "gimana kabarnya")
-  if (/\b(apa kabar|kabarnya gimana|gimana kabar|sehat pak|sehat bu|bapak sehat)\b/i.test(q) && !mentionsContractAction) {
+  // 2. Asking "How are you?" / Daily activity / Meals / Coffee ("gimana kabarnya", "apa kabar", "sehat pak", "udah makan", "ngopi", "lagi ngapain")
+  if (
+    /\b(apa kabar|kabarnya gimana|gimana kabar|gimana kabarnya|kabar bapak|kabar ibu|sehat pak|sehat bu|bapak sehat|udah makan|sudah makan|ngopi|minum kopi|lagi ngapain|sedang apa)\b/i.test(
+      q
+    ) &&
+    !mentionsContractAction
+  ) {
+    if (/\b(makan|ngopi|kopi)\b/i.test(q)) {
+      return {
+        appliedStyle: style,
+        detectedUrgency: urgency,
+        replyText: pickStyledVariant(style, {
+          friendly: `Kebetulan baru saja selesai ngopi sambil baca berkas nih, ${clientFirst}. Anda sendiri sudah makan belum? Jangan sampai telat makan ya di tengah kesibukan kerjaan.`,
+          formal: `Terima kasih perhatiannya, ${clientFirst}, saya baru saja beristirahat sejenak. Semoga Anda juga dalam kondisi prima untuk beraktivitas hari ini.`,
+          concise: `Sudah, terima kasih ${clientFirst}. Saya sedang siap di meja kerja, silakan jika ingin mulai diskusi.`,
+        }),
+        clauseUpdates: [],
+      };
+    }
+
+    if (/\b(lagi ngapain|sedang apa)\b/i.test(q)) {
+      return {
+        appliedStyle: style,
+        detectedUrgency: urgency,
+        replyText: pickStyledVariant(style, {
+          friendly: `Lagi santai memeriksa beberapa draf dokumen di ruang kerja saja kok, ${clientFirst}. Jadi pas banget kalau Anda mau ngobrol atau tanya-tanya sekarang.`,
+          formal: `Saat ini saya sedang meninjau berkas perkara di kantor, ${clientFirst}, dan siap mendampingi sesi konsultasi Anda.`,
+          concise: `Sedang meninjau berkas di meja kerja, ${clientFirst}. Silakan sampaikan hal yang ingin dibahas.`,
+        }),
+        clauseUpdates: [],
+      };
+    }
+
     return {
-      replyText: `Alhamdulillah kabar baik, ${clientFirst}. Semoga Anda di sana juga sehat dan lancar terus kegiatannya ya. Gimana, ada hal yang lagi ingin didiskusikan?`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Alhamdulillah kabar saya baik dan sehat, ${clientFirst}. Terima kasih sudah menanyakan ya! Gimana kabar Anda sendiri hari ini? Semoga sehat dan urusan kerjaannya lancar terus.`,
+        formal: `Kabar saya sangat baik, terima kasih ${clientFirst}. Semoga Anda beserta rekan-rekan juga senantiasa dalam keadaan sehat dan lancar.`,
+        concise: `Kabar baik, terima kasih ${clientFirst}. Semoga Anda juga sehat. Ada yang ingin kita bahas?`,
+      }),
       clauseUpdates: [],
     };
   }
 
-  // 3. Pure Everyday Greetings ("halo pak", "halo", "pagi pak", "siang", "sore", "malam", "permisi", "tes", "p")
+  // 3. Islamic Greeting ("assalamualaikum")
+  if (
+    /\b(assalamualaikum|assalamu'alaikum|salam)\b/i.test(q) &&
+    !mentionsContractAction
+  ) {
+    return {
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Waalaikumsalam warahmatullahi wabarakatuh, ${clientFirst}. Silakan masuk, ada yang lagi ingin diobrolkan atau dikonsultasikan hari ini?`,
+        formal: `Waalaikumsalam warahmatullahi wabarakatuh, ${clientFirst}. Selamat datang di ruang konsultasi, silakan sampaikan hal yang ingin kita bahas.`,
+        concise: `Waalaikumsalam, ${clientFirst}. Silakan, ada yang bisa saya bantu?`,
+      }),
+      clauseUpdates: [],
+    };
+  }
+
+  // 4. Pure Everyday Greetings ("halo pak", "halo", "pagi pak", "siang", "sore", "malam", "permisi", "tes", "p")
   const isCasualGreeting =
     /^(halo|hai|hi|pagi|selamat pagi|siang|selamat siang|sore|selamat sore|malam|selamat malam|permisi|punten|tes|test|ping|p|halo pak|halo bu|halo bang|halo kak|pak|bu|bang)\b/i.test(
       q
@@ -163,73 +411,78 @@ export function runLocalContextualLegalEngine(params: {
     !/\b(tanya|nanya|sibuk|bantu|bingung|masalah|kasus)\b/i.test(q);
 
   if (isCasualGreeting) {
-    if (/\b(pagi)\b/i.test(q)) {
-      return {
-        replyText: `Selamat pagi ${clientFirst}, iya silakan. Ada yang bisa saya bantu pagi ini?`,
-        clauseUpdates: [],
-      };
-    }
-    if (/\b(siang)\b/i.test(q)) {
-      return {
-        replyText: `Selamat siang ${clientFirst}, hadir. Mau ngobrol atau diskusi soal apa nih kita?`,
-        clauseUpdates: [],
-      };
-    }
-    if (/\b(sore|malam)\b/i.test(q)) {
-      return {
-        replyText: `Halo ${clientFirst}, selamat ${/\bmalam\b/i.test(q) ? 'malam' : 'sore'}. Silakan, ada yang sedang ingin dikonsultasikan?`,
-        clauseUpdates: [],
-      };
-    }
+    const timeGreeting = /\bpagi\b/i.test(q)
+      ? 'Selamat pagi'
+      : /\bsiang\b/i.test(q)
+        ? 'Selamat siang'
+        : /\bsore\b/i.test(q)
+          ? 'Selamat sore'
+          : /\bmalam\b/i.test(q)
+            ? 'Selamat malam'
+            : 'Halo';
 
-    const greetingVariants = [
-      `Halo ${clientFirst}, iya silakan. Ada yang bisa saya bantu hari ini?`,
-      `Halo juga ${clientFirst}, hadir. Silakan kalau ada yang mau diceritakan atau ditanyakan ya.`,
-      `Iya halo ${clientFirst}, silakan. Mau diskusi soal perkara atau ada bagian kontrak yang ingin kita bahas?`,
-    ];
     return {
-      replyText: greetingVariants[turnSeed],
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `${timeGreeting} ${clientFirst}, iya saya hadir. Gimana, lagi mau ngobrol santai dulu atau ada hal yang ingin ditanyakan?`,
+        formal: `${timeGreeting} ${clientFirst}. Saya ${lawyerShort} siap mendampingi Anda pada sesi ini. Silakan sampaikan hal yang memerlukan bantuan.`,
+        concise: `${timeGreeting} ${clientFirst}, silakan. Ada yang bisa saya bantu sekarang?`,
+      }),
       clauseUpdates: [],
     };
   }
 
-  // 4. Asking if lawyer is busy / asking permission to ask ("lagi sibuk ga pak?", "boleh tanya?", "mau nanya dong", "bisa bantu saya?")
+  // 5. Asking if lawyer is busy / asking permission to ask ("lagi sibuk ga pak?", "boleh tanya?", "mau nanya dong", "bisa bantu saya?")
   if (
     /\b(lagi sibuk|sibuk ga|sibuk nggak|ada waktu|boleh tanya|boleh nanya|mau tanya|mau nanya|numpang tanya|bisa bantu|minta tolong|bisa konsul|mau konsul)\b/i.test(
       q
     ) &&
     !mentionsContractAction
   ) {
-    const askVariants = [
-      `Boleh banget, ${clientFirst}. Kebetulan saya lagi luang kok. Mau tanya atau cerita soal apa? Santai saja.`,
-      `Silakan ${clientFirst}, saya tidak sedang di persidangan kok. Ceritakan saja apa yang sedang dihadapi.`,
-      `Tentu bisa, ${clientFirst}. Langsung sampaikan saja apa yang mengganjal, kita bahas pelan-pelan ya.`,
-    ];
     return {
-      replyText: askVariants[turnSeed],
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Boleh banget, ${clientFirst}. Kebetulan saya lagi luang dan tidak sedang sidang kok. Mau tanya atau cerita soal apa? Santai saja.`,
+        formal: `Tentu, ${clientFirst}. Saat ini waktu saya sepenuhnya tersedia untuk sesi konsultasi Anda. Silakan sampaikan pertanyaan atau duduk perkaranya.`,
+        concise: `Bisa ${clientFirst}, saya sedang luang. Silakan langsung sampaikan pertanyaannya.`,
+      }),
       clauseUpdates: [],
     };
   }
 
-  // 5. Asking about the lawyer's profile / office / experience ("kantor bapak di mana?", "pengalaman berapa lama?", "siapa nama bapak?")
+  // 6. Asking about the lawyer's profile / office / experience ("kantor bapak di mana?", "pengalaman berapa lama?", "siapa nama bapak?")
   if (
-    /\b(kantor bapak|kantornya di mana|lokasi mana|domisili mana|pengalaman berapa|sudah berapa lama|spesialis apa|siapa nama bapak|nama ibu siapa)\b/i.test(
+    /\b(kantor bapak|kantornya di mana|lokasi mana|domisili mana|pengalaman berapa|sudah berapa lama|spesialis apa|siapa nama bapak|nama ibu siapa|profil bapak)\b/i.test(
       q
     )
   ) {
     return {
-      replyText: `Saya ${lawyerShort}, sehari-hari praktik di wilayah ${lawyer.jurisdiction} dan fokus menangani ${lawyer.specialty} sudah sekitar ${lawyer.experienceYears} tahun. Jadi santai saja ${clientFirst}, anggap saja lagi ngobrol sama rekan sendiri.`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Kenalkan lagi ya ${clientFirst}, saya ${lawyerShort}. Sehari-hari saya praktik di wilayah ${lawyer.jurisdiction} fokus di bidang ${lawyer.specialty}, sudah sekitar ${lawyer.experienceYears} tahun menangani perkara seperti ini. Jadi santai saja, anggap lagi ngobrol sama rekan sendiri.`,
+        formal: `Perkenalkan, saya ${lawyer.name} (${lawyer.niaPeradi}), berpraktik di wilayah hukum ${lawyer.jurisdiction} dengan spesialisasi ${lawyer.specialty} selama ${lawyer.experienceYears} tahun.`,
+        concise: `Saya ${lawyerShort}, Advokat spesialis ${lawyer.specialty} di ${lawyer.jurisdiction} (${lawyer.experienceYears} tahun pengalaman).`,
+      }),
       clauseUpdates: [],
     };
   }
 
-  // 6. Acknowledgements & Thanks ("makasih pak", "terima kasih", "oke pak", "siap", "mantap", "baik pak", "setuju")
+  // 7. Acknowledgements & Thanks ("makasih pak", "terima kasih", "oke pak", "siap", "mantap", "baik pak", "setuju")
   if (
     /^(makasih|terima kasih|trims|thanks|thank you|matur nuwun)/i.test(q) &&
     !mentionsContractAction
   ) {
     return {
-      replyText: `Sama-sama, ${clientFirst}. Senang bisa membantu. Kalau nanti ada yang kepikiran lagi atau mau tanya-tanya, langsung chat saja ya.`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Sama-sama, ${clientFirst}! Senang bisa bantu. Kalau nanti ada yang kepikiran lagi atau sekadar mau tanya pendapat, langsung chat saja ya.`,
+        formal: `Sama-sama, ${clientFirst}. Merupakan kewajiban kami untuk memastikan kepentingan hukum Anda terlindungi dengan baik.`,
+        concise: `Sama-sama, ${clientFirst}. Kabari saja jika butuh bantuan lagi.`,
+      }),
       clauseUpdates: [],
     };
   }
@@ -241,31 +494,38 @@ export function runLocalContextualLegalEngine(params: {
     q.split(/\s+/).length <= 5 &&
     !mentionsContractAction
   ) {
-    const ackVariants = [
-      `Siap, ${clientFirst}. Kabari saja kalau ada hal lain yang mau ditanyakan atau dirombak ya.`,
-      `Oke mantap, ${clientFirst}. Kalau ada bagian lain yang ingin kita bedah lagi, tinggal ketik saja di sini.`,
-      `Baik ${clientFirst}. Saya tetap standby di ruang chat ini kalau Anda butuh perubahan tambahan.`,
-    ];
     return {
-      replyText: ackVariants[turnSeed],
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Siap mantap, ${clientFirst}. Kalau ada hal lain yang mau diobrolkan atau dirombak lagi, tinggal ketik saja kapan pun ya.`,
+        formal: `Baik, ${clientFirst}. Saya tetap bersiaga di ruang konsultasi ini apabila terdapat klausul tambahan yang perlu ditinjau.`,
+        concise: `Siap, ${clientFirst}. Silakan lanjut kapan saja.`,
+      }),
       clauseUpdates: [],
     };
   }
 
-  // 7. Expressing worry, confusion, or asking for general advice ("saya bingung nih", "takut rugi", "ragu", "gimana menurut bapak?")
+  // 8. Expressing worry, confusion, or asking for general advice ("saya bingung nih", "takut rugi", "ragu", "gimana menurut bapak?")
   if (
-    /\b(bingung|takut|ragu|khawatir|masalah|problem|solusi|menurut bapak|menurut ibu|saran bapak|pendapat bapak|gimana bagusnya|baiknya gimana)\b/i.test(
+    /\b(bingung|takut|ragu|khawatir|cemas|masalah|problem|solusi|menurut bapak|menurut ibu|saran bapak|pendapat bapak|gimana bagusnya|baiknya gimana)\b/i.test(
       q
     ) &&
     !mentionsContractAction
   ) {
     return {
-      replyText: `Tenang dulu ${clientFirst}, wajar kok kalau merasa ragu—justru bagus kita cek sekarang sebelum tanda tangan. Coba ceritakan bagian mana yang paling bikin Anda keberatan, atau kalau mau saya cek dan rombakkan pasal yang rawan di sebelah kanan juga bisa langsung saya kerjakan.`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Tenang dulu ${clientFirst}, tarik napas dulu. Wajar banget kok kalau merasa ragu—justru untung kita bahas sekarang sebelum ada yang ditandatangani. Coba ceritakan pelan-pelan bagian mana yang paling bikin Anda nggak nyaman?`,
+        formal: `Kekhawatiran Anda sangat beralasan secara hukum, ${clientFirst}. Langkah paling tepat saat ini adalah mengidentifikasi poin kewajiban yang memberatkan agar dapat kita mitigasi sebelum penandatanganan.`,
+        concise: `Jangan khawatir, ${clientFirst}. Sebutkan poin yang paling merugikan Anda, nanti langsung saya amankan pasalnya.`,
+      }),
       clauseUpdates: [],
     };
   }
 
-  // 8. Check if client wants to ADD a brand new clause ("tambahkan pasal...", "tambah klausul...", "masukkan pasal...")
+  // 9. Check if client wants to ADD a brand new clause ("tambahkan pasal...", "tambah klausul...", "masukkan pasal...")
   const wantsAddClause =
     !pasalMatch &&
     (/\b(tambah|tambahkan|masukkan|sisipkan)\b/i.test(clientMessage) ||
@@ -274,7 +534,9 @@ export function runLocalContextualLegalEngine(params: {
   if (wantsAddClause && document) {
     const nextNum = clauses.length + 1;
     const isForceMajeure = /\b(force majeure|keadaan kahar|bencana)\b/i.test(q);
-    const isConfidentiality = /\b(rahasia|kerahasiaan|nda|data pribadi)\b/i.test(q);
+    const isConfidentiality = /\b(rahasia|kerahasiaan|nda|data pribadi)\b/i.test(
+      q
+    );
     const isDispute = /\b(sengketa|arbitrase|bani|pengadilan)\b/i.test(q);
 
     if (isForceMajeure && isDispute) {
@@ -301,7 +563,13 @@ export function runLocalContextualLegalEngine(params: {
       };
 
       return {
-        replyText: `Siap ${clientFirst}, saya sudah langsung menambahkan dua pasal baru sekaligus di panel kanan: ${fmClause.clauseNumber} tentang Force Majeure dan ${disputeClause.clauseNumber} tentang Penyelesaian Sengketa. Keduanya sudah berstatus Aman, silakan dicek ya.`,
+        appliedStyle: style,
+        detectedUrgency: urgency,
+        replyText: pickStyledVariant(style, {
+          friendly: `Siap ${clientFirst}, saya sudah langsung menambahkan dua pasal baru sekaligus di panel kanan: ${fmClause.clauseNumber} tentang Force Majeure dan ${disputeClause.clauseNumber} tentang Penyelesaian Sengketa. Keduanya sudah berstatus Aman, silakan dicek ya.`,
+          formal: `Sesuai instruksi Anda, ${clientFirst}, saya telah menyisipkan ${fmClause.clauseNumber} (Keadaan Kahar) dan ${disputeClause.clauseNumber} (Penyelesaian Sengketa) ke dalam naskah kontrak sesuai standar KUHPerdata.`,
+          concise: `Selesai, ${clientFirst}. ${fmClause.clauseNumber} (Force Majeure) & ${disputeClause.clauseNumber} (Sengketa) sudah ditambahkan di panel kanan dengan status Aman.`,
+        }),
         referencedClauseLabel: `${fmClause.clauseNumber} & ${disputeClause.clauseNumber}`,
         clauseUpdates: [],
         newClause: fmClause,
@@ -369,7 +637,13 @@ export function runLocalContextualLegalEngine(params: {
     }
 
     return {
-      replyText: `Siap ${clientFirst}, saya sudah menambahkan ${newClause.clauseNumber} tentang ${newClause.title} langsung ke dokumen kontrak di sebelah kanan. Silakan dicek bunyi pasalnya, kalau ada yang mau dipoles lagi tinggal beri tahu saya ya.`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Siap ${clientFirst}, saya sudah menambahkan ${newClause.clauseNumber} tentang ${newClause.title} langsung ke dokumen kontrak di sebelah kanan. Silakan dicek bunyi pasalnya, kalau ada yang mau dipoles lagi tinggal beri tahu saya ya.`,
+        formal: `Telah ditambahkan ${newClause.clauseNumber} mengenai ${newClause.title} ke dalam dokumen kontrak di panel kanan dengan status risiko Aman, ${clientFirst}.`,
+        concise: `Selesai, ${clientFirst}. ${newClause.clauseNumber} (${newClause.title}) sudah ditambahkan ke kontrak di panel kanan.`,
+      }),
       referencedClauseLabel: `${newClause.clauseNumber} — ${newClause.title}`,
       clauseUpdates: [],
       newClause,
@@ -377,39 +651,58 @@ export function runLocalContextualLegalEngine(params: {
     };
   }
 
-  // 9. Check if client asks whether the contract is safe to sign ("apakah kontrak ini sudah aman?", "sudah aman ditandatangani?", "boleh tanda tangan?")
+  // 10. Check if client asks whether the contract is safe to sign ("apakah kontrak ini sudah aman?", "sudah aman ditandatangani?", "boleh tanda tangan?")
   const asksContractSafety =
     /\b(apakah|udah|sudah)\b.*\b(aman|siap|bisa|boleh)\b/i.test(q) ||
     /\b(aman ditandatangani|siap tanda tangan|layak ditandatangani)\b/i.test(q);
 
-  if (asksContractSafety && clauses.length > 0 && !/\b(rombak|revisi|ubah|hapus)\b/i.test(q)) {
+  if (
+    asksContractSafety &&
+    clauses.length > 0 &&
+    !/\b(rombak|revisi|ubah|hapus)\b/i.test(q)
+  ) {
     const riskyClauses = clauses.filter((c) => c.riskStatus !== 'safe');
     if (riskyClauses.length === 0) {
       return {
-        replyText: `Sudah aman untuk ditandatangani, ${clientFirst}. Seluruh ${clauses.length} pasal di panel kanan sudah berstatus Aman dan tidak ada lagi sanksi sepihak yang menjebak posisi Anda.`,
+        appliedStyle: style,
+        detectedUrgency: urgency,
+        replyText: pickStyledVariant(style, {
+          friendly: `Sudah aman untuk ditandatangani, ${clientFirst}. Seluruh ${clauses.length} pasal di panel kanan sudah berstatus Aman dan tidak ada lagi sanksi sepihak yang menjebak posisi Anda.`,
+          formal: `Berdasarkan hasil telaah akhir, seluruh ${clauses.length} klausul pada dokumen kontrak ini telah memenuhi asas keseimbangan hukum dan berstatus Aman untuk ditandatangani, ${clientFirst}.`,
+          concise: `Sudah Aman, ${clientFirst}. Seluruh ${clauses.length} pasal siap ditandatangani.`,
+        }),
         clauseUpdates: [],
       };
     }
     const firstRisky = riskyClauses[0];
     const riskyList = riskyClauses.map((c) => c.clauseNumber).join(' dan ');
     return {
-      replyText: `Saran saya jangan ditandatangani dulu ya, ${clientFirst}. Masih ada ${riskyClauses.length} pasal yang berisiko bagi posisi Anda (${riskyList}), terutama di ${firstRisky.clauseNumber} mengenai ${firstRisky.title}. Kalau Anda setuju, ketik saja "Rombak semua pasal berisiko" biar langsung saya amankan semuanya sekarang.`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Saran saya jangan ditandatangani dulu ya, ${clientFirst}. Masih ada ${riskyClauses.length} pasal yang berisiko bagi posisi Anda (${riskyList}), terutama di ${firstRisky.clauseNumber} mengenai ${firstRisky.title}. Kalau Anda setuju, ketik saja "Rombak semua pasal berisiko" biar langsung saya amankan semuanya sekarang.`,
+        formal: `Secara hukum, dokumen ini belum layak ditandatangani karena masih terdapat ${riskyClauses.length} klausul berisiko (${riskyList}), khususnya ${firstRisky.clauseNumber} (${firstRisky.title}). Balas "Rombak semua pasal berisiko" agar saya perbarui seluruhnya.`,
+        concise: `Belum aman, ${clientFirst}. Masih ada ${riskyClauses.length} pasal berisiko (${riskyList}). Ketik "Rombak semua pasal berisiko" untuk saya amankan sekarang.`,
+      }),
       referencedClauseId: firstRisky.id,
       referencedClauseLabel: `${firstRisky.clauseNumber} — ${firstRisky.title}`,
       clauseUpdates: [],
     };
   }
 
-  // 10. Check if client is asking to REVISE / ROMBAK clauses
+  // 11. Check if client is asking to REVISE / ROMBAK clauses
   const isRevisionIntent =
     /\b(rombak|rombakkan|revisi|ubah|ganti|hapus|perbaiki|amankan|turunkan|naikkan|sesuaikan|batalkan|hilangkan|kurangi|buatkan usulan)\b/i.test(
       clientMessage
     ) ||
     Boolean(
-      pasalMatch && /\b(jadi|menjadi|tanpa|jangan|maksimal|hari|%|hapus|hilangkan)\b/i.test(clientMessage)
+      pasalMatch &&
+        /\b(jadi|menjadi|tanpa|jangan|maksimal|hari|%|hapus|hilangkan)\b/i.test(
+          clientMessage
+        )
     );
 
-  // 10A. Bulk revision of all risky clauses ("rombak semua", "amankan semua pasal", "rombak kontrak ini")
+  // 11A. Bulk revision of all risky clauses ("rombak semua", "amankan semua pasal", "rombak kontrak ini")
   const wantsBulkRevision =
     isRevisionIntent &&
     !targetClause &&
@@ -422,7 +715,13 @@ export function runLocalContextualLegalEngine(params: {
 
     if (riskyClauses.length === 0) {
       return {
-        replyText: `Semua pasal di kontrak ini (${clauses.length} pasal) sebenarnya sudah berstatus Aman, ${clientFirst}. Tapi kalau ada pasal tertentu yang ingin Anda ubah lagi bunyi kalimat atau angkanya, sebutkan saja nomor pasalnya ya.`,
+        appliedStyle: style,
+        detectedUrgency: urgency,
+        replyText: pickStyledVariant(style, {
+          friendly: `Semua pasal di kontrak ini (${clauses.length} pasal) sebenarnya sudah berstatus Aman, ${clientFirst}. Tapi kalau ada pasal tertentu yang ingin Anda ubah lagi bunyi kalimat atau angkanya, sebutkan saja nomor pasalnya ya.`,
+          formal: `Seluruh ${clauses.length} pasal dalam dokumen kontrak saat ini telah berstatus Aman, ${clientFirst}. Silakan sebutkan nomor pasal spesifik apabila Anda menghendaki penyesuaian redaksional lebih lanjut.`,
+          concise: `Seluruh ${clauses.length} pasal sudah Aman, ${clientFirst}. Sebutkan nomor pasal jika ingin ubah detail tertentu.`,
+        }),
         clauseUpdates: [],
       };
     }
@@ -447,7 +746,13 @@ export function runLocalContextualLegalEngine(params: {
     const firstTarget = riskyClauses[0];
     const revisedList = riskyClauses.map((t) => t.clauseNumber).join(', ');
     return {
-      replyText: `Siap ${clientFirst}, sudah saya rombak semuanya! Sebanyak ${updates.length} pasal yang tadinya memberatkan (${revisedList}) di panel kanan sudah saya ganti dengan rumusan yang seimbang dan statusnya sekarang sudah Aman semua. Silakan dicek hasilnya di sebelah kanan.`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Siap ${clientFirst}, sudah saya rombak semuanya! Sebanyak ${updates.length} pasal yang tadinya memberatkan (${revisedList}) di panel kanan sudah saya ganti dengan rumusan yang seimbang dan statusnya sekarang sudah Aman semua. Silakan dicek hasilnya di sebelah kanan.`,
+        formal: `Telah dilakukan perombakan menyeluruh terhadap ${updates.length} klausul berisiko (${revisedList}) sesuai asas proporsionalitas Pasal 1338 KUHPerdata. Seluruh klausul kini berstatus Aman dan Opini Hukum telah diperbarui.`,
+        concise: `Selesai, ${clientFirst}. ${updates.length} pasal berisiko (${revisedList}) telah dirombak menjadi Aman di panel kanan.`,
+      }),
       referencedClauseId: firstTarget.id,
       referencedClauseLabel: `${firstTarget.clauseNumber} — ${firstTarget.title}`,
       clauseUpdates: updates,
@@ -456,7 +761,7 @@ export function runLocalContextualLegalEngine(params: {
     };
   }
 
-  // 10B. Specific clause revision (e.g., "Tolong rombak Pasal 2 agar denda dihapus" or "Rombak pasal ini")
+  // 11B. Specific clause revision (e.g., "Tolong rombak Pasal 2 agar denda dihapus" or "Rombak pasal ini")
   if (isRevisionIntent && clauses.length > 0) {
     const clauseToRevise =
       targetClause ||
@@ -476,21 +781,21 @@ export function runLocalContextualLegalEngine(params: {
 
     if (wantsNoPenalty) {
       customDraft = `Kewajiban pada ${clauseToRevise.clauseNumber} (${clauseToRevise.title}) dikecualikan apabila terdapat kendala pasokan atau keadaan di luar kendali PIHAK KEDUA. Setiap ketidaktercapaian target diselesaikan melalui evaluasi tertulis bersama oleh Para Pihak tanpa pengenaan denda tunai maupun sanksi finansial sepihak.`;
-      naturalExplanation = `Klausul denda sepihaknya sudah saya hapus dan saya ganti dengan mekanisme evaluasi bersama tanpa penalti finansial.`;
+      naturalExplanation = `Klausul denda sepihaknya sudah saya hapus dan diganti mekanisme evaluasi bersama tanpa penalti finansial.`;
     } else if (daysMatch || percentMatch) {
       const daysText = daysMatch ? `${daysMatch[1]} hari kalender` : '30 hari kalender';
       const pctText = percentMatch ? `${percentMatch[1]}%` : '2%';
       customDraft = `Pelaksanaan kewajiban pada ${clauseToRevise.clauseNumber} (${clauseToRevise.title}) diberikan jangka waktu selama ${daysText} sejak diterimanya dokumen lengkap, dengan batas maksimum penyesuaian atau denda keterlambatan terkendali sebesar ${pctText} berdasarkan kesepakatan tertulis Para Pihak.`;
-      naturalExplanation = `Jangka waktunya sudah saya sesuaikan menjadi ${daysText} dengan batas ketentuan ${pctText} agar tetap terkendali.`;
+      naturalExplanation = `Jangka waktunya sudah disesuaikan menjadi ${daysText} dengan batas ketentuan ${pctText} agar tetap terkendali.`;
     } else if (
       !customDraft ||
       customDraft.trim().length === 0 ||
       customDraft === clauseToRevise.originalText
     ) {
       customDraft = `Ketentuan dalam ${clauseToRevise.clauseNumber} (${clauseToRevise.title}) dilaksanakan berdasarkan asas keseimbangan dan iktikad baik (Pasal 1338 KUHPerdata), di mana setiap perubahan kuota, denda, atau pengakhiran wajib memperoleh persetujuan tertulis dari kedua belah pihak.`;
-      naturalExplanation = `Rumusannya sudah saya ubah agar tidak bisa diputuskan sepihak dan wajib melalui persetujuan bersama.`;
+      naturalExplanation = `Rumusannya sudah diubah agar tidak bisa diputuskan sepihak dan wajib melalui persetujuan bersama.`;
     } else {
-      naturalExplanation = `Bunyi pasalnya sudah saya ganti mengikuti draf perlindungan hukum yang seimbang bagi posisi Anda.`;
+      naturalExplanation = `Bunyi pasalnya sudah diganti mengikuti draf perlindungan hukum yang seimbang bagi posisi Anda.`;
     }
 
     const update: AutoAdvocateClauseUpdate = {
@@ -502,7 +807,13 @@ export function runLocalContextualLegalEngine(params: {
     };
 
     return {
-      replyText: `Siap ${clientFirst}, ${clauseToRevise.clauseNumber} (${clauseToRevise.title}) sudah langsung saya rombak di panel kanan ya. ${naturalExplanation} Status pasalnya sekarang sudah berubah menjadi Aman.`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Siap ${clientFirst}, ${clauseToRevise.clauseNumber} (${clauseToRevise.title}) sudah langsung saya rombak di panel kanan ya. ${naturalExplanation} Status pasalnya sekarang sudah berubah menjadi Aman.`,
+        formal: `Perombakan pada ${clauseToRevise.clauseNumber} (${clauseToRevise.title}) telah diterapkan di panel kanan, ${clientFirst}. ${naturalExplanation} Status klausul kini dinyatakan Aman.`,
+        concise: `Selesai, ${clientFirst}. ${clauseToRevise.clauseNumber} (${clauseToRevise.title}) sudah dirombak menjadi Aman. ${naturalExplanation}`,
+      }),
       referencedClauseId: clauseToRevise.id,
       referencedClauseLabel: `${clauseToRevise.clauseNumber} — ${clauseToRevise.title}`,
       clauseUpdates: [update],
@@ -510,26 +821,48 @@ export function runLocalContextualLegalEngine(params: {
     };
   }
 
-  // 11. Specific legal topics & negotiation chat
+  // 12. Specific legal topics & negotiation chat
   const relevantClause =
     targetClause ||
     clauses.find((c) => c.riskStatus === 'critical') ||
     clauses.find((c) => c.riskStatus === 'warning');
 
-  if (/\b(negosiasi|pihak lawan|vendor|mereka nolak|tidak mau|keberatan)\b/i.test(q)) {
+  if (
+    /\b(negosiasi|pihak lawan|vendor|mereka nolak|tidak mau|keberatan)\b/i.test(q)
+  ) {
     return {
-      replyText: `Kalau pihak lawan keberatan pasalnya dihapus total, trik negosiasinya kita tawarkan jalan tengah, ${clientFirst}. Misalnya sanksi dendanya kita ganti jadi evaluasi berkala atau batas maksimal dendanya dibatasi 2% saja. Biasanya lawan transaksi jauh lebih mudah menerima opsi jalan tengah seperti itu.`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Kalau pihak lawan keberatan pasalnya dihapus total, trik negosiasinya kita tawarkan jalan tengah, ${clientFirst}. Misalnya sanksi dendanya kita ganti jadi evaluasi berkala atau batas maksimal dendanya dibatasi 2% saja. Biasanya lawan transaksi jauh lebih mudah menerima opsi jalan tengah seperti itu.`,
+        formal: `Dalam strategi negosiasi kontrak komersial, apabila pihak lawan menolak penghapusan klausul secara penuh, kita dapat mengajukan klausul jalan tengah berupa pembatasan plafon denda maksimal (capping) 2% atau mekanisme evaluasi kuartalan.`,
+        concise: `Solusi negosiasinya: tawarkan jalan tengah berupa batas maksimal denda 2% atau evaluasi bersama, ${clientFirst}.`,
+      }),
       clauseUpdates: [],
     };
   }
 
   if (/\b(denda|kuota|sanksi|penalti)\b/i.test(q)) {
     return {
-      replyText: `Soal denda atau target kuota itu memang harus hati-hati, ${clientFirst}. Dalam hukum perjanjian kita, sanksi tidak boleh berat sebelah apalagi kalau kendalanya bukan dari pihak Anda.${
-        relevantClause
-          ? ` Kalau mau, bilang saja "Rombak ${relevantClause.clauseNumber} agar denda dihapus", nanti langsung saya ubah pasalnya di kanan.`
-          : ''
-      }`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Soal denda atau target kuota itu memang harus hati-hati, ${clientFirst}. Dalam hukum perjanjian kita, sanksi tidak boleh berat sebelah apalagi kalau kendalanya bukan dari pihak Anda.${
+          relevantClause
+            ? ` Kalau mau, bilang saja "Rombak ${relevantClause.clauseNumber} agar denda dihapus", nanti langsung saya ubah pasalnya di kanan.`
+            : ''
+        }`,
+        formal: `Berdasarkan asas iktikad baik dan kepatutan Pasal 1338 KUHPerdata, klausul denda sepihak yang tidak proporsional dapat dimintakan revisi sebelum penandatanganan.${
+          relevantClause
+            ? ` Ketik "Rombak ${relevantClause.clauseNumber} agar denda dihapus" untuk menerapkan perbaikan pada kontrak.`
+            : ''
+        }`,
+        concise: `Klausul denda sepihak berisiko tinggi, ${clientFirst}.${
+          relevantClause
+            ? ` Ketik "Rombak ${relevantClause.clauseNumber} agar denda dihapus" agar langsung saya ubah.`
+            : ''
+        }`,
+      }),
       referencedClauseId: relevantClause?.id,
       referencedClauseLabel: relevantClause
         ? `${relevantClause.clauseNumber} — ${relevantClause.title}`
@@ -540,56 +873,26 @@ export function runLocalContextualLegalEngine(params: {
 
   if (/\b(wanprestasi|ingkar janji|gagal bayar|somasi|telat|terlambat)\b/i.test(q)) {
     return {
-      replyText: `Kalau pihak lawan yang wanprestasi atau terlambat memenuhi kewajibannya, Anda berhak melayangkan teguran tertulis (somasi) dan menunda pembayaran Anda, ${clientFirst}. Mau sekalian saya tambahkan pasal Penyelesaian Sengketa di kontrak kanan supaya posisi Anda makin kuat?`,
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Kalau pihak lawan yang wanprestasi atau terlambat memenuhi kewajibannya, Anda berhak melayangkan teguran tertulis (somasi) dan menunda pembayaran Anda, ${clientFirst}. Mau sekalian saya tambahkan pasal Penyelesaian Sengketa di kontrak kanan supaya posisi Anda makin kuat?`,
+        formal: `Mengacu pada Pasal 1266 dan 1267 KUHPerdata, apabila pihak lawan melakukan wanprestasi, Anda berhak melayangkan somasi serta menuntut pemenuhan perjanjian atau pembatalan disertai ganti rugi.`,
+        concise: `Jika lawan wanprestasi, Anda berhak melayangkan somasi dan menunda kewajiban pembayaran (Pasal 1267 KUHPerdata), ${clientFirst}.`,
+      }),
       clauseUpdates: [],
     };
   }
 
-  if (/\b(putus|pengakhiran|batal|sepihak|terminasi|stok)\b/i.test(q)) {
-    return {
-      replyText: `Pengakhiran kontrak secara sepihak dengan pemberitahuan mendadak jelas merugikan Anda, ${clientFirst}. Idealnya harus ada pemberitahuan minimal 30-60 hari sebelumnya dan kewajiban membeli kembali sisa stok. Mau langsung saya rombakkan klausul pengakhirannya di sebelah kanan?`,
-      referencedClauseId: relevantClause?.id,
-      referencedClauseLabel: relevantClause
-        ? `${relevantClause.clauseNumber} — ${relevantClause.title}`
-        : undefined,
-      clauseUpdates: [],
-    };
-  }
-
-  if (/\b(pkwt|percobaan|probation|pesangon|kompensasi|phk|kerja|karyawan|gaji)\b/i.test(q)) {
-    return {
-      replyText: `Kalau untuk kontrak kerja PKWT, aturan PP No. 35 Tahun 2021 tegas melarang adanya masa percobaan (probation)—jadi kalau dicantumkan, masa percobaannya batal demi hukum dan pekerja tetap wajib dapat Uang Kompensasi, ${clientFirst}. Mau langsung saya rombak pasalnya di panel kanan?`,
-      referencedClauseId: relevantClause?.id,
-      referencedClauseLabel: relevantClause
-        ? `${relevantClause.clauseNumber} — ${relevantClause.title}`
-        : undefined,
-      clauseUpdates: [],
-    };
-  }
-
-  if (/\b(tanah|shm|ppjb|ajb|ppat|bphtb|pph|properti|ruko|sertifikat)\b/i.test(q)) {
-    return {
-      replyText: `Dalam jual beli properti atau PPJB, pastikan pajak PPh Final 2,5% ditanggung Penjual dan BPHTB 5% oleh Pembeli, plus wajib ada klausul Kuasa Menjual mutlak saat pembayaran lunas 100%, ${clientFirst}. Kalau ada pasal di draf kanan yang mau disesuaikan, tinggal sebutkan saja ya.`,
-      clauseUpdates: [],
-    };
-  }
-
-  if (/\b(biaya|tarif|harga|bayar|fee)\b/i.test(q)) {
-    return {
-      replyText: `Untuk sesi konsultasi dan perombakan draf kontrak di ruang ini sudah termasuk dalam layanan pendampingan kita, ${clientFirst}. Jadi Anda bebas ngobrol atau meminta saya merombak pasal mana pun sampai drafnya benar-benar aman.`,
-      clauseUpdates: [],
-    };
-  }
-
-  // 12. General human-like chat fallback (does NOT force Pasal 2 unless the user mentioned clauses/contracts)
-  const conversationalFallbacks = [
-    `Iya ${clientFirst}, saya tangkap maksudnya. Coba ceritakan lebih detail lagi bagian mana yang paling ingin Anda amankan, atau kalau mau saya langsung rombakkan pasal di kontrak sebelah kanan juga siap.`,
-    `Paham, ${clientFirst}. Dalam praktik sehari-hari hal seperti itu memang sering jadi titik krusial. Menurut Anda sendiri, skema yang paling nyaman buat posisi Anda seperti apa? Nanti saya tuangkan ke dalam bunyi pasalnya.`,
-    `Betul sekali, ${clientFirst}. Kita pastikan saja semua kesepakatan tertulisnya jelas di awal supaya tidak jadi celah di kemudian hari. Ada poin spesifik yang mau kita ubah sekarang?`,
-  ];
-
+  // 13. General human-like chat fallback adapted to the selected style
   return {
-    replyText: conversationalFallbacks[turnSeed],
+    appliedStyle: style,
+    detectedUrgency: urgency,
+    replyText: pickStyledVariant(style, {
+      friendly: `Iya ${clientFirst}, saya tangkap maksudnya. Coba ceritakan saja lebih lanjut bagian mana yang lagi Anda pikirkan, atau kalau mau saya bantu bereskan pasal di sebelah kanan juga tinggal bilang ya.`,
+      formal: `Baik ${clientFirst}, poin yang Anda sampaikan telah saya perhatikan. Silakan informasikan apabila terdapat klausul kontrak atau aspek hukum spesifik yang ingin segera kita tindak lanjuti.`,
+      concise: `Baik ${clientFirst}, poin Anda sudah jelas. Sebutkan bagian yang ingin langsung saya tindak lanjuti.`,
+    }),
     clauseUpdates: [],
   };
 }
