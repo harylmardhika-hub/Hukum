@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -313,6 +314,32 @@ async function startServer() {
             attachedDocumentTitle: attachedDocTitle,
           });
 
+          const assignedLawyer =
+            state.lawyers.find((l) => l.id === lawyerId) || state.lawyers[0];
+          const createdDoc = state.documents.find((d) => d.id === attachedDocId);
+          const firstRisky =
+            createdDoc?.clauses.find((c) => c.riskStatus === 'critical') ||
+            createdDoc?.clauses.find((c) => c.riskStatus === 'warning') ||
+            createdDoc?.clauses[0];
+          const clientFirst = clientName.split(/\s+/)[0] || clientName;
+
+          if (assignedLawyer) {
+            state.messages.push({
+              id: `msg-welcome-${id}`,
+              sessionId: id,
+              senderRole: 'lawyer',
+              senderName: assignedLawyer.name,
+              content: firstRisky
+                ? `Halo ${clientFirst}, draf kontrak Anda sudah saya buka di panel sebelah kanan ya. Sekilas saya lihat ada klausul yang cukup berat sebelah, terutama di ${firstRisky.clauseNumber} (${firstRisky.title}). Mau langsung saya rombakkan pasalnya sekarang, atau ada poin lain yang ingin Anda tanyakan dulu?`
+                : `Halo ${clientFirst}, selamat datang di ruang konsultasi ${category}. Draf kontrak Anda sudah siap di sebelah kanan. Silakan beri tahu saya pasal mana yang ingin dirombak atau ditanyakan.`,
+              timestamp: getCurrentTimeWIB(),
+              referencedClauseId: firstRisky?.id,
+              referencedClauseLabel: firstRisky
+                ? `${firstRisky.clauseNumber} — ${firstRisky.title}`
+                : undefined,
+            });
+          }
+
           syncAllClients();
           return;
         }
@@ -510,21 +537,30 @@ async function startServer() {
             )
             .join('\n') || 'Belum ada pasal kontrak.';
 
-        const promptText = `Anda adalah Advokat Indonesia berlisensi PERADI: ${params.lawyer.name} (${params.lawyer.niaPeradi}), Spesialis ${params.lawyer.specialty}.
-Klien: ${params.session.clientName} (${params.session.clientCompany || 'Klien'}).
-Perkara: ${params.session.title} (${params.session.caseNumber}).
-Pasal yang dikutip Klien (jika ada): ${params.quotedClauseId || 'Tidak ada'}.
+        const recentChatHistory =
+          params.recentMessages
+            ?.slice(-6)
+            .map((m) => `${m.senderName} (${m.senderRole}): ${m.content}`)
+            .join('\n') || 'Belum ada riwayat chat.';
+
+        const promptText = `Anda adalah Advokat senior Indonesia: ${params.lawyer.name} (${params.lawyer.niaPeradi}), Spesialis ${params.lawyer.specialty}.
+Anda sedang mengobrol langsung di ruang chat dengan klien Anda: ${params.session.clientName}.
 
 Daftar Pasal Kontrak Saat Ini (${params.document?.title || 'Dokumen'}):
 ${clausesSummary}
 
-Pesan / Permintaan Terbaru dari Klien:
+Riwayat Obrolan Terakhir:
+${recentChatHistory}
+
+Pesan Terbaru dari Klien:
 "${params.clientMessage}"
 
-Tugas Anda:
-1. Jawab pesan Klien secara ringkas, jelas, dan profesional (maksimal 2-3 kalimat) sesuai hukum positif Indonesia (KUHPerdata, UU Ketenagakerjaan/PP 35/2021, UU PT, Hukum Pertanahan, Pidana, atau Waris).
-2. Jika Klien meminta merombak, mengubah, merevisi, menghapus denda, atau mengamankan pasal tertentu (atau semua pasal berisiko), ISI array "clauseUpdates" dengan "clauseId" yang tepat dari daftar di atas, ubah "riskStatus" menjadi "safe", tulis "replaceOriginalText" (bunyi pasal baru yang sudah dirombak), "proposedRevision" (rumusan pengganti), dan "lawyerNote" singkat.
-3. Jika Klien meminta menambahkan pasal baru (misal Force Majeure, Kerahasiaan, Penyelesaian Sengketa, dll), isi objek "newClause".`;
+Aturan Gaya Bahasa & Tindakan (SANGAT PENTING):
+1. Gunakan bahasa Indonesia percakapan yang natural, hangat, luwes, dan manusiawi seperti pengacara senior asli yang sedang chat dengan kliennya (sapa nama panggilan klien seperti "${params.session.clientName.split(/\s+/)[0]}").
+2. JANGAN PERNAH mengulang kalimat klien secara kaku (jangan tulis "Saya telah mencatat poin Anda: ...").
+3. JANGAN GUNAKAN simbol markdown bintang (** atau *) sama sekali karena teks ditampilkan sebagai plain text.
+4. Jika Klien hanya menyapa ("Halo pak", "Pagi", "Tes") atau mengucapkan terima kasih, balas sapaan tersebut secara ramah dan natural tanpa melampirkan referencedClauseId kecuali relevan.
+5. Jika Klien meminta merombak, mengubah, merevisi, menghapus denda, atau mengamankan pasal tertentu (atau semua pasal berisiko), ISI array "clauseUpdates" dengan "clauseId" yang tepat dari daftar di atas, ubah "riskStatus" menjadi "safe", tulis "replaceOriginalText" (bunyi pasal baru yang sudah dirombak), "proposedRevision" (rumusan pengganti), dan "lawyerNote" singkat.`;
 
         const response = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
@@ -536,15 +572,15 @@ Tugas Anda:
               properties: {
                 replyText: {
                   type: Type.STRING,
-                  description: 'Balasan singkat dan jelas dari Advokat untuk Klien di ruang chat.',
+                  description: 'Balasan chat natural tanpa tanda bintang markdown (**).',
                 },
                 referencedClauseId: {
                   type: Type.STRING,
-                  description: 'ID pasal yang dirujuk atau dirombak (jika ada).',
+                  description: 'ID pasal yang dirombak atau dibahas spesifik (kosongkan jika hanya sapaan).',
                 },
                 referencedClauseLabel: {
                   type: Type.STRING,
-                  description: 'Label pasal seperti "Pasal 2 — Judul Pasal" (jika ada).',
+                  description: 'Label pasal seperti "Pasal 2 — Judul Pasal" (kosongkan jika hanya sapaan).',
                 },
                 clauseUpdates: {
                   type: Type.ARRAY,
@@ -572,8 +608,12 @@ Tugas Anda:
         if (rawJson) {
           const parsed = JSON.parse(rawJson) as AutoAdvocateResult;
           if (parsed && parsed.replyText) {
+            const cleanReply = parsed.replyText
+              .replace(/\*\*(.*?)\*\*/g, '$1')
+              .replace(/\*(.*?)\*/g, '$1')
+              .trim();
             res.json({
-              replyText: parsed.replyText,
+              replyText: cleanReply,
               referencedClauseId: parsed.referencedClauseId || undefined,
               referencedClauseLabel: parsed.referencedClauseLabel || undefined,
               clauseUpdates: Array.isArray(parsed.clauseUpdates)

@@ -474,23 +474,31 @@ export default function App() {
           });
 
           if (autoResult.newClause) {
-            const addedId = `${doc.id}-cl-${nextClauses.length + 1}-${Date.now()}`;
-            const createdClause: ContractClause = {
-              id: addedId,
-              clauseNumber:
-                autoResult.newClause.clauseNumber ||
-                `Pasal ${nextClauses.length + 1}`,
-              title: autoResult.newClause.title,
-              originalText: autoResult.newClause.originalText,
-              riskStatus: autoResult.newClause.riskStatus || 'safe',
-              lawyerNote: autoResult.newClause.lawyerNote,
-              proposedRevision: autoResult.newClause.proposedRevision,
-              lastUpdatedBy: assignedLawyer.name,
-              lastUpdatedAt: replyTime,
-            };
-            nextClauses = [...nextClauses, createdClause];
-            updatedClauseId = addedId;
-            updatedClauseLabel = `${createdClause.clauseNumber} — ${createdClause.title}`;
+            const clausesToAdd = [
+              autoResult.newClause,
+              ...(autoResult.additionalNewClauses || []),
+            ];
+            clausesToAdd.forEach((nc, idx) => {
+              const addedId = `${doc.id}-cl-${nextClauses.length + 1}-${Date.now()}-${idx}`;
+              const createdClause: ContractClause = {
+                id: addedId,
+                clauseNumber: nc.clauseNumber || `Pasal ${nextClauses.length + 1}`,
+                title: nc.title,
+                originalText: nc.originalText,
+                riskStatus: nc.riskStatus || 'safe',
+                lawyerNote: nc.lawyerNote,
+                proposedRevision: nc.proposedRevision,
+                lastUpdatedBy: assignedLawyer.name,
+                lastUpdatedAt: replyTime,
+              };
+              nextClauses = [...nextClauses, createdClause];
+              if (idx === 0) {
+                updatedClauseId = addedId;
+                updatedClauseLabel =
+                  autoResult.referencedClauseLabel ||
+                  `${createdClause.clauseNumber} — ${createdClause.title}`;
+              }
+            });
           }
 
           const hasRemainingRisk = nextClauses.some(
@@ -886,10 +894,31 @@ export default function App() {
       attachedDocumentTitle: starterDoc.title,
     };
 
+    const firstRiskyClause =
+      starterDoc.clauses.find((c) => c.riskStatus === 'critical') ||
+      starterDoc.clauses.find((c) => c.riskStatus === 'warning') ||
+      starterDoc.clauses[0];
+    const clientFirst = authSession.name.split(/\s+/)[0] || authSession.name;
+
+    const welcomeLawyerMsg: ChatMessage = {
+      id: `msg-welcome-${newSessionId}`,
+      sessionId: newSessionId,
+      senderRole: 'lawyer',
+      senderName: lawyer.name,
+      content: firstRiskyClause
+        ? `Halo ${clientFirst}, draf ${matchingTemplate.title} sudah saya buka di panel sebelah kanan ya. Sekilas saya lihat ada klausul yang cukup berat sebelah, terutama di ${firstRiskyClause.clauseNumber} (${firstRiskyClause.title}). Mau langsung saya rombakkan pasalnya sekarang, atau ada poin lain yang ingin Anda tanyakan dulu?`
+        : `Halo ${clientFirst}, selamat datang di ruang konsultasi ${lawyer.specialty}. Draf kontrak Anda sudah siap di sebelah kanan. Silakan beri tahu saya pasal mana yang ingin dirombak atau ditanyakan.`,
+      timestamp: nowWib,
+      referencedClauseId: firstRiskyClause?.id,
+      referencedClauseLabel: firstRiskyClause
+        ? `${firstRiskyClause.clauseNumber} — ${firstRiskyClause.title}`
+        : undefined,
+    };
+
     applyAndSyncState({
       sessions: [newSession, ...stateRef.current.sessions],
       documents: [...stateRef.current.documents, starterDoc],
-      messages: [...stateRef.current.messages, initMsg],
+      messages: [...stateRef.current.messages, initMsg, welcomeLawyerMsg],
     });
 
     emitWsEvent({
@@ -911,12 +940,6 @@ export default function App() {
     setActiveSection('consultation');
     setInspectingLawyer(null);
     setIntakeModalLawyer(null);
-
-    // Automatically trigger initial greeting & contract inspection from the assigned Advocate
-    triggerAdvocateAutoReply({
-      sessionId: newSessionId,
-      clientMessage: initialMessageText,
-    });
   };
 
   const openConsultationIntake = (lawyer: Lawyer) => {
