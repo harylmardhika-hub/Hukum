@@ -14,8 +14,8 @@ import {
   INITIAL_DOCUMENTS,
 } from '../data/initialLegalData';
 
-export const SHARED_STATE_STORAGE_KEY = 'advokaid_shared_realtime_state_v3';
-export const BROADCAST_CHANNEL_NAME = 'advokaid_realtime_channel_v3';
+export const SHARED_STATE_STORAGE_KEY = 'advokaid_shared_realtime_state_v5';
+export const BROADCAST_CHANNEL_NAME = 'advokaid_realtime_channel_v5';
 
 export type CrossTabMessage =
   | {

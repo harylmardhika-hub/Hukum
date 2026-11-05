@@ -9,6 +9,13 @@ import {
 
 export const INITIAL_CLIENTS: ClientAccount[] = [
   {
+    id: 'cli-4',
+    name: 'Aisyah Unardi',
+    email: 'aisyah.unardi@mahkotaniaga.co.id',
+    company: 'Direktur Operasional — PT Mahkota Niaga Nusantara',
+    phone: '0811-9284-550',
+  },
+  {
     id: 'cli-1',
     name: 'Budi Santoso',
     email: 'budi.santoso@nusantarapangan.co.id',
@@ -349,6 +356,27 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
 
 export const INITIAL_SESSIONS: ConsultationSession[] = [
   {
+    id: 'ses-104',
+    caseNumber: 'REG/2026/BIZ-0912',
+    clientId: 'cli-4',
+    clientName: 'Aisyah Unardi',
+    clientCompany: 'Direktur Operasional — PT Mahkota Niaga Nusantara',
+    lawyerId: 'lw-1',
+    title: 'Peninjauan Kontrak Kemitraan Pasokan & Klausul Sanksi Korporasi',
+    category: 'Hukum Bisnis & Korporasi',
+    status: 'Aktif',
+    startedAt: '16:05 WIB',
+    legalOpinionSummary:
+      'Berdasarkan telaah awal atas Draf Perjanjian Pasokan Strategis PT Mahkota Niaga Nusantara, terdapat 2 klausul berisiko tinggi (Pasal 2 mengenai Denda Kuota 40% dan Pasal 4 mengenai Pengakhiran Sepihak) yang perlu dirombak agar tidak merugikan operasional perusahaan Klien.',
+    recommendedNextSteps: [
+      'Rombak Pasal 2 agar sanksi denda kuota 40% dihapus dan diganti evaluasi bersama.',
+      'Sesuaikan batas denda keterlambatan pembayaran pada Pasal 3 menjadi maksimal 5%.',
+      'Tambahkan klausul Force Majeure & Penyelesaian Sengketa untuk perlindungan penuh.',
+    ],
+    unreadClientCount: 0,
+    unreadLawyerCount: 1,
+  },
+  {
     id: 'ses-101',
     caseNumber: 'REG/2026/BIZ-0841',
     clientId: 'cli-1',
@@ -458,6 +486,21 @@ export const INITIAL_DOCUMENTS: LegalDocument[] = [
       lastUpdatedAt: '12:05 WIB',
     })),
   },
+  {
+    id: 'doc-204',
+    sessionId: 'ses-104',
+    title: 'Draf_Perjanjian_Pasokan_Strategis_Mahkota_Niaga_2026.pdf',
+    documentType: 'Kontrak Komersial B2B',
+    uploadedBy: 'client',
+    uploadedAt: '16:06 WIB',
+    overallStatus: 'Sedang Ditinjau',
+    clauses: CONTRACT_TEMPLATES[0].clauses.map((c, idx) => ({
+      ...c,
+      id: `cl-204-${idx + 1}`,
+      lastUpdatedBy: 'Rendra Mahendra, S.H., LL.M.',
+      lastUpdatedAt: '16:10 WIB',
+    })),
+  },
 ];
 
 export const INITIAL_MESSAGES: ChatMessage[] = [
@@ -548,5 +591,27 @@ export const INITIAL_MESSAGES: ChatMessage[] = [
     timestamp: '12:05 WIB',
     referencedClauseId: 'cl-203-3',
     referencedClauseLabel: 'Pasal 3 — Kuasa Menjual & AJB di PPAT',
+  },
+  {
+    id: 'msg-9',
+    sessionId: 'ses-104',
+    senderRole: 'client',
+    senderName: 'Aisyah Unardi',
+    content:
+      'Sore Pak Rendra, saya Aisyah Unardi dari PT Mahkota Niaga Nusantara. Saya lampirkan draf Perjanjian Pasokan Strategis dari mitra kami untuk ditinjau bersama ya Pak.',
+    timestamp: '16:06 WIB',
+    attachedDocumentId: 'doc-204',
+    attachedDocumentTitle: 'Draf_Perjanjian_Pasokan_Strategis_Mahkota_Niaga_2026.pdf',
+  },
+  {
+    id: 'msg-10',
+    sessionId: 'ses-104',
+    senderRole: 'lawyer',
+    senderName: 'Rendra Mahendra, S.H., LL.M.',
+    content:
+      'Halo Ibu Aisyah, selamat sore. Draf kontrak PT Mahkota Niaga Nusantara sudah saya buka di panel sebelah kanan ya. Sekilas saya lihat Pasal 2 tentang denda kuota 40% dan Pasal 4 tentang pengakhiran sepihak cukup berisiko. Mau langsung saya rombakkan pasalnya sekarang, atau ada hal lain yang ingin Ibu diskusikan dulu?',
+    timestamp: '16:10 WIB',
+    referencedClauseId: 'cl-204-2',
+    referencedClauseLabel: 'Pasal 2 — Target Pembelian Minimum & Sanksi Kuota',
   },
 ];
