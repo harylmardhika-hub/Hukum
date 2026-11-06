@@ -11,6 +11,7 @@ import {
   MessageSquare,
   ChevronDown,
   Film,
+  Download,
 } from 'lucide-react';
 import {
   ConsultationSession,
@@ -23,6 +24,7 @@ import {
 import { LawyerAvatar } from './LawyerAvatar';
 import { ContractReviewerPanel } from './ContractReviewerPanel';
 import { LegalVideoBriefingModal } from './LegalVideoBriefing';
+import { exportConsultationAndContractPdf } from '../utils/exportLegalPdf';
 
 interface ConsultationRoomProps {
   session: ConsultationSession;
@@ -230,6 +232,22 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
               <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() =>
+              exportConsultationAndContractPdf({
+                session,
+                lawyer,
+                documents,
+                messages,
+              })
+            }
+            className="min-h-[38px] inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+          >
+            <Download className="w-3.5 h-3.5 text-amber-400" />
+            <span>Unduh PDF</span>
+          </button>
 
           <button
             type="button"
@@ -604,7 +622,22 @@ export const ConsultationRoom: React.FC<ConsultationRoomProps> = ({
                   </ul>
                 </div>
 
-                <div className="flex items-center justify-end pt-3 border-t border-slate-200">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      exportConsultationAndContractPdf({
+                        session,
+                        lawyer,
+                        documents,
+                        messages,
+                      })
+                    }
+                    className="min-h-[42px] inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-300 rounded-lg hover:bg-amber-100"
+                  >
+                    <Download className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Unduh Salinan PDF</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setShowOpinionModal(false)}

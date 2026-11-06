@@ -11,8 +11,8 @@ export const INITIAL_CLIENTS: ClientAccount[] = [
   {
     id: 'cli-4',
     name: 'Aisyah Unardi',
-    email: 'aisyah.unardi@mahkotaniaga.co.id',
-    company: 'Direktur Operasional — PT Mahkota Niaga Nusantara',
+    email: 'aisyah.unardi@student.unsika.ac.id',
+    company: 'Legal & Corporate Officer — PT Mahkota Niaga Nusantara (Mahasiswa UNSIKA)',
     phone: '0811-9284-550',
   },
   {
@@ -360,18 +360,18 @@ export const INITIAL_SESSIONS: ConsultationSession[] = [
     caseNumber: 'REG/2026/BIZ-0912',
     clientId: 'cli-4',
     clientName: 'Aisyah Unardi',
-    clientCompany: 'Direktur Operasional — PT Mahkota Niaga Nusantara',
+    clientCompany: 'Legal & Corporate Officer — PT Mahkota Niaga Nusantara (Mahasiswa UNSIKA)',
     lawyerId: 'lw-1',
-    title: 'Peninjauan Kontrak Kemitraan Pasokan & Klausul Sanksi Korporasi',
+    title: 'Telaah Kontrak Perusahaan & Diskusi Hafalan Pasal KUHPerdata',
     category: 'Hukum Bisnis & Korporasi',
     status: 'Aktif',
     startedAt: '16:05 WIB',
     legalOpinionSummary:
-      'Berdasarkan telaah awal atas Draf Perjanjian Pasokan Strategis PT Mahkota Niaga Nusantara, terdapat 2 klausul berisiko tinggi (Pasal 2 mengenai Denda Kuota 40% dan Pasal 4 mengenai Pengakhiran Sepihak) yang perlu dirombak agar tidak merugikan operasional perusahaan Klien.',
+      'Berdasarkan telaah awal atas Draf Perjanjian Pasokan Strategis PT Mahkota Niaga Nusantara, terdapat 2 klausul berisiko tinggi (Pasal 2 terkait Denda Kuota 40% dan Pasal 4 terkait Pengakhiran Sepihak) yang bertentangan dengan asas kepatutan Pasal 1338 KUHPerdata dan perlu dirombak.',
     recommendedNextSteps: [
-      'Rombak Pasal 2 agar sanksi denda kuota 40% dihapus dan diganti evaluasi bersama.',
+      'Rombak Pasal 2 menggunakan dasar Pasal 1244-1245 KUHPerdata (Keadaan Kahar) dan Pasal 1338 KUHPerdata.',
       'Sesuaikan batas denda keterlambatan pembayaran pada Pasal 3 menjadi maksimal 5%.',
-      'Tambahkan klausul Force Majeure & Penyelesaian Sengketa untuk perlindungan penuh.',
+      'Kaitkan hafalan Pasal 1320, 1266, dan 1267 KUHPerdata dengan klausul pengakhiran kontrak.',
     ],
     unreadClientCount: 0,
     unreadLawyerCount: 1,
@@ -598,7 +598,7 @@ export const INITIAL_MESSAGES: ChatMessage[] = [
     senderRole: 'client',
     senderName: 'Aisyah Unardi',
     content:
-      'Sore Pak Rendra, saya Aisyah Unardi dari PT Mahkota Niaga Nusantara. Saya lampirkan draf Perjanjian Pasokan Strategis dari mitra kami untuk ditinjau bersama ya Pak.',
+      'Sore Pak Rendra, saya Aisyah Unardi, Legal & Corporate Officer di PT Mahkota Niaga Nusantara sekaligus mahasiswa di UNSIKA yang lagi fokus menghafal pasal-pasal KUHPerdata. Ini saya lampirkan draf kontrak perusahaan kami untuk ditinjau bareng sekalian bahan belajar pasal ya Pak.',
     timestamp: '16:06 WIB',
     attachedDocumentId: 'doc-204',
     attachedDocumentTitle: 'Draf_Perjanjian_Pasokan_Strategis_Mahkota_Niaga_2026.pdf',
@@ -609,7 +609,7 @@ export const INITIAL_MESSAGES: ChatMessage[] = [
     senderRole: 'lawyer',
     senderName: 'Rendra Mahendra, S.H., LL.M.',
     content:
-      'Halo Ibu Aisyah, selamat sore. Draf kontrak PT Mahkota Niaga Nusantara sudah saya buka di panel sebelah kanan ya. Sekilas saya lihat Pasal 2 tentang denda kuota 40% dan Pasal 4 tentang pengakhiran sepihak cukup berisiko. Mau langsung saya rombakkan pasalnya sekarang, atau ada hal lain yang ingin Ibu diskusikan dulu?',
+      'Halo Aisyah, selamat sore! Keren sekali kuliah di UNSIKA sambil pegang posisi Legal & Corporate Officer di perusahaan. Draf kontraknya sudah saya buka di sebelah kanan ya—pas banget buat latihan bedah Pasal 1320 dan Pasal 1338 KUHPerdata, terutama di Pasal 2 (denda kuota 40%) dan Pasal 4 yang berat sebelah. Mau kita bahas pasalnya buat hafalan dulu atau langsung kita rombak drafnya?',
     timestamp: '16:10 WIB',
     referencedClauseId: 'cl-204-2',
     referencedClauseLabel: 'Pasal 2 — Target Pembelian Minimum & Sanksi Kuota',

@@ -13,6 +13,7 @@ import {
   LogOut,
   UserCheck,
   Film,
+  Download,
 } from 'lucide-react';
 import {
   AuthSession,
@@ -41,6 +42,7 @@ import { LawyerDashboard } from './components/LawyerDashboard';
 import { LoginPage } from './components/LoginPage';
 import { AdvokaIdLogo } from './components/AdvokaIdLogo';
 import { LegalVideoBriefingModal } from './components/LegalVideoBriefing';
+import { PaymentSimulationModal } from './components/PaymentSimulationModal';
 import {
   SHARED_STATE_STORAGE_KEY,
   BROADCAST_CHANNEL_NAME,
@@ -51,6 +53,7 @@ import {
   mergeServerStates,
 } from './utils/realtimeSync';
 import { generateAdvocateAutoResponse } from './utils/autoAdvocateEngine';
+import { exportConsultationAndContractPdf } from './utils/exportLegalPdf';
 
 type ActiveSection = 'directory' | 'consultation' | 'contracts' | 'guide';
 
@@ -825,17 +828,48 @@ export default function App() {
     });
   };
 
-  // 1-CLICK INSTANT CONSULTATION ROOM ENTRY (No manual intake form required!)
-  const startInstantConsultation = (lawyer: Lawyer) => {
+  // Create or enter consultation room after payment simulation completes
+  const startInstantConsultation = (
+    lawyer: Lawyer,
+    paymentReceipt?: {
+      invoiceNumber: string;
+      paymentMethodLabel: string;
+      totalPaid: number;
+    }
+  ) => {
+    const nowWib = getNowWIB();
     const existing = mySessions.find((s) => s.lawyerId === lawyer.id);
+
     if (existing) {
+      if (paymentReceipt) {
+        const receiptMsg: ChatMessage = {
+          id: `msg-pay-${Date.now()}`,
+          sessionId: existing.id,
+          senderRole: 'client',
+          senderName: authSession.name,
+          content: `[Pembayaran Retainer Terverifikasi — ${paymentReceipt.invoiceNumber} · ${paymentReceipt.paymentMethodLabel} · Rp ${paymentReceipt.totalPaid.toLocaleString('id-ID')} LUNAS]`,
+          timestamp: nowWib,
+        };
+        const clientFirst = authSession.name.split(/\s+/)[0] || authSession.name;
+        const lawyerAckMsg: ChatMessage = {
+          id: `msg-pay-ack-${Date.now()}`,
+          sessionId: existing.id,
+          senderRole: 'lawyer',
+          senderName: lawyer.name,
+          content: `Terima kasih ${clientFirst}, pembayaran kuitansi ${paymentReceipt.invoiceNumber} sudah masuk dan terverifikasi di sistem Escrow. Silakan sampaikan pasal kontrak yang ingin langsung kita rombak atau diskusikan sekarang.`,
+          timestamp: nowWib,
+        };
+        applyAndSyncState({
+          messages: [...stateRef.current.messages, receiptMsg, lawyerAckMsg],
+        });
+      }
       setSelectedSessionId(existing.id);
       setActiveSection('consultation');
       setInspectingLawyer(null);
+      setIntakeModalLawyer(null);
       return;
     }
 
-    const nowWib = getNowWIB();
     const newSessionId = `ses-${Date.now()}`;
     const matchingTemplate =
       CONTRACT_TEMPLATES.find((t) => t.category === lawyer.specialty) ||
@@ -853,7 +887,7 @@ export default function App() {
       status: 'Aktif',
       startedAt: nowWib,
       legalOpinionSummary:
-        'Ruang konsultasi baru telah aktif. Silakan sampaikan pertanyaan hukum Anda di kolom chat atau pilih pasal kontrak di panel kanan untuk ditinjau bersama Advokat.',
+        'Pembayaran sesi konsultasi telah terverifikasi. Silakan sampaikan pertanyaan hukum Anda di kolom chat atau pilih pasal kontrak di panel kanan untuk dirombak bersama Advokat.',
       recommendedNextSteps: [
         'Tulis pokok pertanyaan hukum Anda langsung di ruang chat.',
         'Unggah atau kutip pasal kontrak di panel kanan untuk dibahas bersama Advokat.',
@@ -877,7 +911,11 @@ export default function App() {
       })),
     };
 
-    const initialMessageText = `Halo ${
+    const receiptPrefix = paymentReceipt
+      ? `[Kuitansi Lunas: ${paymentReceipt.invoiceNumber} · ${paymentReceipt.paymentMethodLabel} · Rp ${paymentReceipt.totalPaid.toLocaleString('id-ID')}] `
+      : '';
+
+    const initialMessageText = `${receiptPrefix}Halo ${
       lawyer.name.split(',')[0]
     }, saya ${authSession.name} ingin berkonsultasi mengenai perkara ${
       lawyer.specialty
@@ -906,8 +944,8 @@ export default function App() {
       senderRole: 'lawyer',
       senderName: lawyer.name,
       content: firstRiskyClause
-        ? `Halo ${clientFirst}, draf ${matchingTemplate.title} sudah saya buka di panel sebelah kanan ya. Sekilas saya lihat ada klausul yang cukup berat sebelah, terutama di ${firstRiskyClause.clauseNumber} (${firstRiskyClause.title}). Mau langsung saya rombakkan pasalnya sekarang, atau ada poin lain yang ingin Anda tanyakan dulu?`
-        : `Halo ${clientFirst}, selamat datang di ruang konsultasi ${lawyer.specialty}. Draf kontrak Anda sudah siap di sebelah kanan. Silakan beri tahu saya pasal mana yang ingin dirombak atau ditanyakan.`,
+        ? `Halo ${clientFirst}, terima kasih pembayarannya sudah terverifikasi. Draf ${matchingTemplate.title} sudah saya buka di panel sebelah kanan ya. Sekilas saya lihat ada klausul yang cukup berat sebelah, terutama di ${firstRiskyClause.clauseNumber} (${firstRiskyClause.title}). Mau langsung saya rombakkan pasalnya sekarang, atau ada poin lain yang ingin Anda tanyakan dulu?`
+        : `Halo ${clientFirst}, pembayaran Anda sudah terverifikasi dan selamat datang di ruang konsultasi ${lawyer.specialty}. Draf kontrak Anda sudah siap di sebelah kanan. Silakan beri tahu saya pasal mana yang ingin dirombak atau ditanyakan.`,
       timestamp: nowWib,
       referencedClauseId: firstRiskyClause?.id,
       referencedClauseLabel: firstRiskyClause
@@ -943,14 +981,8 @@ export default function App() {
   };
 
   const openConsultationIntake = (lawyer: Lawyer) => {
-    // Directly enter the chat room in 1 click as requested by the user
-    startInstantConsultation(lawyer);
-  };
-
-  const handleCreateNewSession = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!intakeModalLawyer) return;
-    startInstantConsultation(intakeModalLawyer);
+    setInspectingLawyer(null);
+    setIntakeModalLawyer(lawyer);
   };
 
   // Filtered Lawyers in Directory
@@ -1167,13 +1199,13 @@ export default function App() {
               </div>
 
               {/* Right Column: Client's Own Active Session Card */}
-              <div className="lg:col-span-5 bg-slate-900 text-white rounded-xl p-5 sm:p-6 flex flex-col justify-between border border-slate-800">
+              <div className="lg:col-span-5 bg-slate-900 text-white rounded-xl p-5 sm:p-6 flex flex-col justify-between border border-slate-800 overflow-hidden min-w-0">
                 {currentSession ? (
                   <>
                     <div>
-                      <div className="flex items-center justify-between text-xs text-slate-400 font-mono tabular-nums pb-3 border-b border-slate-800">
-                        <span>PERKARA AKTIF ANDA</span>
-                        <span className="text-amber-400">
+                      <div className="flex items-center justify-between gap-2 text-xs text-slate-400 font-mono tabular-nums pb-3 border-b border-slate-800">
+                        <span className="truncate">PERKARA AKTIF ANDA</span>
+                        <span className="text-amber-400 shrink-0">
                           {currentSession.caseNumber}
                         </span>
                       </div>
@@ -1185,32 +1217,32 @@ export default function App() {
                       </p>
                     </div>
 
-                    <div className="mt-5 pt-4 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="text-xs text-slate-300">
-                        <div className="truncate">
+                    <div className="mt-5 pt-4 border-t border-slate-800 flex flex-col gap-3.5">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-slate-300 min-w-0">
+                        <div className="truncate font-medium text-slate-200">
                           Advokat: {currentSessionLawyer.name}
                         </div>
-                        <div className="text-slate-400 font-mono tabular-nums mt-0.5">
+                        <div className="text-slate-400 font-mono tabular-nums shrink-0">
                           {currentSessionDocuments.length} Dokumen Kontrak ·{' '}
                           {currentSessionMessages.length} Pesan
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="grid grid-cols-2 gap-2.5 w-full">
                         <button
                           type="button"
                           onClick={() => setShowHeroVideoModal(true)}
-                          className="min-h-[42px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0"
+                          className="min-h-[42px] w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors whitespace-nowrap"
                         >
-                          <Film className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Video Ringkasan</span>
+                          <Film className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span className="truncate">Video Ringkasan</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setActiveSection('consultation')}
-                          className="min-h-[42px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-950 bg-amber-400 rounded-lg hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0"
+                          className="min-h-[42px] w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-950 bg-amber-400 rounded-lg hover:bg-amber-300 transition-colors whitespace-nowrap"
                         >
-                          <span>Lanjutkan Chat</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span className="truncate">Lanjutkan Chat</span>
+                          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                         </button>
                       </div>
                     </div>
@@ -1536,19 +1568,40 @@ export default function App() {
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (parentSession) {
-                            setSelectedSessionId(parentSession.id);
-                          }
-                          setActiveSection('consultation');
-                        }}
-                        className="mt-5 w-full min-h-[44px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Tinjau {doc.clauses.length} Pasal di Ruang Chat</span>
-                      </button>
+                      <div className="mt-5 grid grid-cols-1 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (parentSession) {
+                              setSelectedSessionId(parentSession.id);
+                            }
+                            setActiveSection('consultation');
+                          }}
+                          className="w-full min-h-[42px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Tinjau {doc.clauses.length} Pasal di Ruang Chat</span>
+                        </button>
+                        {parentSession && docLawyer && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              exportConsultationAndContractPdf({
+                                session: parentSession,
+                                lawyer: docLawyer,
+                                documents: [doc],
+                                messages: messages.filter(
+                                  (m) => m.sessionId === parentSession.id
+                                ),
+                              })
+                            }
+                            className="w-full min-h-[40px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Unduh Hasil Telaah (.PDF)</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1745,121 +1798,20 @@ export default function App() {
         </div>
       )}
 
-      {/* NEW CONSULTATION INTAKE MODAL */}
+      {/* PAYMENT SIMULATION CHECKOUT MODAL BEFORE CONSULTATION */}
       {intakeModalLawyer && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/50 p-0 sm:p-4">
-          <div className="bg-white border border-slate-200 rounded-t-3xl sm:rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-xl max-h-[92vh] overflow-y-auto">
-            <div className="w-10 h-1.5 bg-slate-300 rounded-full mx-auto mb-3 sm:hidden" />
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Mulai Sesi Konsultasi & Tinjauan Kontrak Baru
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Klien: {authSession.name} ({authSession.subtitle})
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIntakeModalLawyer(null)}
-                className="min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-400 hover:text-slate-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateNewSession} className="mt-4 space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-800 mb-1">
-                  Pilih Advokat Pendamping
-                </label>
-                <select
-                  value={intakeModalLawyer.id}
-                  onChange={(e) => {
-                    const found = lawyers.find((l) => l.id === e.target.value);
-                    if (found) setIntakeModalLawyer(found);
-                  }}
-                  className="w-full min-h-[44px] text-xs border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-600"
-                >
-                  {lawyers.map((lw) => (
-                    <option key={lw.id} value={lw.id}>
-                      {lw.name} — {lw.specialty} ({formatRupiah(lw.consultationFee)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-800 mb-1">
-                  Judul Pokok Perkara / Konsultasi
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={caseTitleInput}
-                  onChange={(e) => setCaseTitleInput(e.target.value)}
-                  placeholder="Contoh: Peninjauan Kontrak Vendor IT & Klausul HKI"
-                  className="w-full min-h-[44px] text-xs border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-800 mb-1">
-                  Kronologi Singkat / Pertanyaan Hukum Utama
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={caseMessageInput}
-                  onChange={(e) => setCaseMessageInput(e.target.value)}
-                  className="w-full text-xs border border-slate-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-amber-600"
-                />
-              </div>
-
-              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2.5">
-                <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer min-h-[36px]">
-                  <input
-                    type="checkbox"
-                    checked={attachInitialTemplate}
-                    onChange={(e) => setAttachInitialTemplate(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-amber-700 focus:ring-amber-600"
-                  />
-                  <span>Lampirkan Draf Kontrak Hukum untuk Ditinjau Bersama</span>
-                </label>
-
-                {attachInitialTemplate && (
-                  <select
-                    value={selectedTemplateId}
-                    onChange={(e) => setSelectedTemplateId(e.target.value)}
-                    className="w-full min-h-[40px] text-xs bg-white border border-slate-300 rounded-md px-2.5 py-1.5"
-                  >
-                    {CONTRACT_TEMPLATES.map((tpl) => (
-                      <option key={tpl.id} value={tpl.id}>
-                        {tpl.title} ({tpl.clauses.length} Pasal)
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setIntakeModalLawyer(null)}
-                  className="min-h-[44px] px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="min-h-[44px] px-4 py-2 text-xs font-semibold text-white bg-amber-700 rounded-lg hover:bg-amber-800"
-                >
-                  Buka Ruang Konsultasi
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <PaymentSimulationModal
+          lawyer={intakeModalLawyer}
+          authSession={authSession}
+          onClose={() => setIntakeModalLawyer(null)}
+          onPaymentSuccess={(paymentInfo) => {
+            startInstantConsultation(paymentInfo.lawyer, {
+              invoiceNumber: paymentInfo.invoiceNumber,
+              paymentMethodLabel: paymentInfo.paymentMethodLabel,
+              totalPaid: paymentInfo.totalPaid,
+            });
+          }}
+        />
       )}
 
       {/* REMOTION HERO VIDEO BRIEFING MODAL */}

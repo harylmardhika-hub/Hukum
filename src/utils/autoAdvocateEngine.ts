@@ -884,6 +884,23 @@ export function runLocalContextualLegalEngine(params: {
     };
   }
 
+  if (
+    /\b(hafal|hapal|menghafal|menghapal|hafalan|hapalan|unsika|kuliah|mahasiswa|kampus|ujian|skripsi|pasal berapa|pasal penting|kuhperdata)\b/i.test(
+      q
+    )
+  ) {
+    return {
+      appliedStyle: style,
+      detectedUrgency: urgency,
+      replyText: pickStyledVariant(style, {
+        friendly: `Semangat terus kuliahnya di UNSIKA sambil pegang posisi di perusahaan ya, ${clientFirst}! Biar gampang dihafal buat ujian sekaligus kerjaan kontrak: ingat 4 pilar KUHPerdata ini—Pasal 1320 (4 syarat sah perjanjian), Pasal 1338 (kebebasan berkontrak & iktikad baik), Pasal 1243 & 1267 (ganti rugi wanprestasi), serta Pasal 1244-1245 (Force Majeure). Mau kita tes hafalan pasal lain atau lanjut bedah draf di kanan?`,
+        formal: `Untuk mendukung studi hukum Anda di UNSIKA sekaligus tugas korporasi, berikut pasal kunci Hukum Perikatan KUHPerdata yang wajib dikuasai: Pasal 1320 (syarat sahnya perjanjian), Pasal 1338 (asas pacta sunt servanda & iktikad baik), Pasal 1243 jo. 1267 (akibat wanprestasi), Pasal 1244-1245 (keadaan kahar), dan Pasal 1365 (perbuatan melawan hukum).`,
+        concise: `Rangkuman cepat hafalan KUHPerdata untuk ${clientFirst}: Pasal 1320 (Syarat Sah), Pasal 1338 (Iktikad Baik), Pasal 1243/1267 (Wanprestasi), dan Pasal 1244-1245 (Force Majeure).`,
+      }),
+      clauseUpdates: [],
+    };
+  }
+
   // 13. General human-like chat fallback adapted to the selected style
   return {
     appliedStyle: style,
